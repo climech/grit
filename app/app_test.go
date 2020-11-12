@@ -33,7 +33,7 @@ func TestLoop(t *testing.T) {
 	a := setupApp(t)
 	defer tearApp(t, a)
 
-	node, err := a.AddNode("test")
+	node, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
@@ -59,7 +59,7 @@ func TestBackEdge(t *testing.T) {
 	//    └──[ ] test (2)
 	//        └──[ ] test (3)
 	//
-	node1, err := a.AddNode("test")
+	node1, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
@@ -89,7 +89,7 @@ func TestForwardEdge(t *testing.T) {
 	//    └──[ ] test (2)
 	//        └──[ ] test (3)
 	//
-	node1, err := a.AddNode("test")
+	node1, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
@@ -120,7 +120,7 @@ func TestCrossEdge(t *testing.T) {
 	//
 	//   [ ] test (3)
 	//
-	root1, err := a.AddNode("test")
+	root1, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
@@ -128,7 +128,7 @@ func TestCrossEdge(t *testing.T) {
 	if err != nil {
 		t.Fatal("couldn't create node (2)")
 	}
-	root2, err := a.AddNode("test")
+	root2, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (3)")
 	}
@@ -150,7 +150,7 @@ func TestStatusChange(t *testing.T) {
 	//    └──[ ] test (3)
 	//        └──[ ] test (4)
 	//
-	node1, err := a.AddNode("test")
+	node1, err := a.AddRoot("test")
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}

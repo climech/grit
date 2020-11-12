@@ -89,7 +89,21 @@ func (d *Database) Init() error {
 	return nil
 }
 
-func (d *Database) BeginTx() (*sql.Tx, error) {
+func (d *Database) beginTx() (*sql.Tx, error) {
 	ctx := context.TODO()
 	return d.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+}
+
+func (d *Database) execTxFunc(f func(*sql.Tx) error) error {
+	tx, err := d.beginTx()
+	if err != nil {
+		return err
+	}
+	if err := f(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }

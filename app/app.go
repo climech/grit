@@ -51,15 +51,15 @@ func (a *App) Close() {
 	a.Database.Close()
 }
 
-// AddNode creates a node and returns it as a member of its graph.
-func (a *App) AddNode(name string) (*graph.Node, error) {
+// AddNode creates a root and returns it as a member of its graph.
+func (a *App) AddRoot(name string) (*graph.Node, error) {
 	if err := graph.ValidateNodeName(name); err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
 	if err := graph.ValidateDateNodeName(name); err == nil {
-		return nil, NewError(ErrInvalidSelector, "reserved name")
+		return nil, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", name))
 	}
-	nodeId, err := a.Database.CreateNode(name)
+	nodeId, err := a.Database.CreateNode(name, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (a *App) AddSuccessor(name string, predecessor interface{}) (*graph.Node, e
 		return nil, NewError(ErrInvalidName, err.Error())
 	}
 	if err := graph.ValidateDateNodeName(name); err == nil {
-		return nil, NewError(ErrInvalidName, "reserved name")
+		return nil, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", name))
 	}
 	preId, err := a.selectorToId(predecessor)
 	if err != nil {
@@ -83,9 +83,9 @@ func (a *App) AddSuccessor(name string, predecessor interface{}) (*graph.Node, e
 	var nodeId int64
 	var nodeErr error
 	if preId == 0 {
-		nodeId, nodeErr = a.Database.CreateSuccessorOfDateNode(name, predecessor.(string))
+		nodeId, nodeErr = a.Database.CreateSuccessorOfDateNode(predecessor.(string), name)
 	} else {
-		nodeId, nodeErr = a.Database.CreateSuccessor(name, preId)
+		nodeId, nodeErr = a.Database.CreateNode(name, preId)
 	}
 
 	if nodeErr != nil {
@@ -105,16 +105,14 @@ func (a *App) AddTree(node *graph.Node, predecessor interface{}) (int64, error) 
 			return 0, NewError(ErrInvalidName, err.Error())
 		}
 		if err := graph.ValidateDateNodeName(n.Name); err == nil {
-			return 0, NewError(ErrInvalidName, "reserved name")
+			return 0, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", n.Name))
 		}
 	}
-	var pre interface{} = predecessor
-	if v, ok := pre.(string); ok {
-		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
-			pre = i
-		}
+	preId, err := a.selectorToId(predecessor)
+	if err != nil {
+		return 0, NewError(ErrInvalidSelector, err.Error())
 	}
-	id, err := a.Database.CreateTree(node, pre)
+	id, err := a.Database.CreateTree(node, preId)
 	if err != nil {
 		e, ok := err.(sqlite.Error)
 		if ok && e.ExtendedCode == sqlite.ErrConstraintForeignKey {
@@ -294,15 +292,15 @@ func (a *App) RemoveNodeRecursive(selector interface{}) ([]*graph.Node, error) {
 	return deleted, nil
 }
 
-func (a *App) checkNode(selector interface{}, check bool) error {
+func (a *App) checkNode(selector interface{}, value bool) error {
 	id, err := a.selectorToId(selector)
 	if err != nil {
 		return NewError(ErrInvalidSelector, err.Error())
 	}
-	if err := a.Database.CheckNode(id, check); err != nil {
-		return err
+	if value {
+		return a.Database.CheckNode(id)
 	}
-	return nil
+	return a.Database.UncheckNode(id)
 }
 
 func (a *App) CheckNode(selector interface{}) error {

@@ -6,30 +6,52 @@ import (
 	"github.com/climech/grit/graph"
 )
 
-// GetGraph builds a graph using Breadth-First Search, and returns the
-// requested node.
-func (d *Database) GetGraph(nodeId int64) (*graph.Node, error) {
-	tx, err := d.BeginTx()
+// getAdjacent gets both the direct predececessors and successors of the node.
+func getAdjacent(tx *sql.Tx, id int64) ([]*graph.Node, error) {
+	rows, err := tx.Query(
+		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
+		"LEFT JOIN edges ON node_id = origin_id " +
+		"WHERE dest_id = ?",
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
-	node, err := txGetGraph(tx, nodeId)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if node == nil {
-		tx.Rollback()
-		return nil, nil
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return node, nil
+	nodes := rowsToNodes(rows)
+	return nodes, nil
 }
 
-// txGetGraph gets the graph as part of a transaction.
-func txGetGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
+// getPredecessors gets nodes connected to the given node by incoming edges.
+func getPredecessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
+	rows, err := tx.Query(
+		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
+		"LEFT JOIN edges ON node_id = origin_id " +
+		"WHERE dest_id = ?",
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	nodes := rowsToNodes(rows)
+	return nodes, nil
+}
+
+// getSuccessors gets nodes connected to the given node by outgoing edges.
+func getSuccessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
+	rows, err := tx.Query(
+		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
+		"LEFT JOIN edges ON node_id = dest_id " +
+		"WHERE origin_id = ?",
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	nodes := rowsToNodes(rows)
+	return nodes, nil
+}
+
+func getGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 	row := tx.QueryRow("SELECT * FROM nodes WHERE node_id = ?", nodeId)
 	node, err := rowToNode(row)
 	if err != nil {
@@ -50,7 +72,7 @@ func txGetGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 			queue.Remove(elem)
 			current := elem.Value.(*graph.Node)
 
-			predecessors, err := txGetPredecessors(tx, current.Id)
+			predecessors, err := getPredecessors(tx, current.Id)
 			if err != nil {
 				return nil, err
 			}
@@ -64,7 +86,7 @@ func txGetGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 				}
 			}
 
-			successors, err := txGetSuccessors(tx, current.Id)
+			successors, err := getSuccessors(tx, current.Id)
 			if err != nil {
 				return nil, err
 			}
@@ -83,47 +105,20 @@ func txGetGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 	return node, nil
 }
 
-// GetAdjacent gets both the predececessors and successors of the node.
-func txGetAdjacent(tx *sql.Tx, id int64) ([]*graph.Node, error) {
-	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
-		"LEFT JOIN edges ON node_id = origin_id " +
-		"WHERE dest_id = ?",
-		id,
-	)
+// GetGraph builds a graph using Breadth-First Search, and returns the
+// requested node as part of the graph.
+func (d *Database) GetGraph(nodeId int64) (*graph.Node, error) {
+	var node *graph.Node
+	err := d.execTxFunc(func(tx *sql.Tx) error {
+		n, err := getGraph(tx, nodeId)
+		if err != nil {
+			return err
+		}
+		node = n
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	nodes := rowsToNodes(rows)
-	return nodes, nil
-}
-
-// txGetPredecessors gets nodes connected to the given node by incoming edges.
-func txGetPredecessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
-	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
-		"LEFT JOIN edges ON node_id = origin_id " +
-		"WHERE dest_id = ?",
-		id,
-	)
-	if err != nil {
-		return nil, err
-	}
-	nodes := rowsToNodes(rows)
-	return nodes, nil
-}
-
-// txGetSuccessors gets nodes connected to the given node by outgoing edges.
-func txGetSuccessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
-	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_checked FROM nodes " +
-		"LEFT JOIN edges ON node_id = dest_id " +
-		"WHERE origin_id = ?",
-		id,
-	)
-	if err != nil {
-		return nil, err
-	}
-	nodes := rowsToNodes(rows)
-	return nodes, nil
+	return node, nil
 }

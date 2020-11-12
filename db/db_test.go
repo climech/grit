@@ -30,7 +30,7 @@ func TestLinkToDateNode(t *testing.T) {
 	d := setupDB(t)
 	defer tearDB(t, d)
 
-	rootId, err := d.CreateNode("test root")
+	rootId, err := d.CreateNode("test root", 0)
 	if err != nil {
 		t.Fatalf("couldn't create root: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestLinkToDateNode(t *testing.T) {
 		t.Fatalf("got root ID = %d, want 1", rootId)
 	}
 
-	succId, err := d.CreateSuccessorOfDateNode("test successor", "2020-01-01")
+	succId, err := d.CreateSuccessorOfDateNode("2020-01-01", "test successor")
 	if err != nil {
 		t.Fatalf("couldn't create root: %v", err)
 	}

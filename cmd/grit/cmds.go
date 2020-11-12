@@ -34,7 +34,7 @@ func cmdAdd(cmd *cli.Cmd) {
 		defer a.Close()
 
 		if *makeRoot {
-			node, err := a.AddNode(*name)
+			node, err := a.AddRoot(*name)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}

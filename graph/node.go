@@ -661,10 +661,10 @@ func ValidateNodeName(name string) error {
 
 func ValidateDateNodeName(name string) error {
 	if len(name) == 0 {
-		return errors.New("invalid date node name: empty string")
+		return fmt.Errorf("invalid date node name: empty string")
 	}
 	if _, err := time.Parse("2006-01-02", name); err != nil {
-		return errors.New("invalid date node name")
+		return fmt.Errorf("invalid date node name: %v", name)
 	}
 	return nil
 }
