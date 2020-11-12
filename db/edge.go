@@ -56,6 +56,13 @@ func (d *Database) CreateEdge(originId, destId int64) (int64, error) {
 		return -1, err
 	}
 
+	if yes, err := txIsDateNode(tx, destId); err != nil {
+		tx.Rollback()
+		return -1, err
+	} else if yes {
+		return -1, errors.New("cannot link to a date node")
+	}
+
 	edgeId, err := txCreateEdge(tx, originId, destId)
 	if err != nil {
 		tx.Rollback()
@@ -74,7 +81,6 @@ func (d *Database) CreateEdge(originId, destId int64) (int64, error) {
 		tx.Rollback()
 		return -1, errors.New("forward edges not allowed")
 	}
-	// Fix completion between roots and dest.
 	if err := txFixBefore(tx, node); err != nil {
 		tx.Rollback()
 		return -1, err

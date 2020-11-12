@@ -36,6 +36,15 @@ func (d *Database) GetRoots() ([]*graph.Node, error) {
 	return rowsToNodes(rows), nil
 }
 
+func txIsDateNode(tx *sql.Tx, id int64) (bool, error) {
+	row := tx.QueryRow("SELECT * FROM nodes WHERE node_id = ?", id)
+	node, err := rowToNode(row)
+	if err != nil {
+		return false, err
+	}
+	return (graph.ValidateDateNodeName(node.Name) == nil), nil
+}
+
 func txCreateNode(tx *sql.Tx, name string, predecessorId int64) (int64, error) {
 	r, err := tx.Exec(`INSERT INTO nodes (node_name) VALUES (?)`, name)
 	if err != nil {
