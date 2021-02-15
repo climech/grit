@@ -3,31 +3,35 @@
 package db
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
+	"fmt"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	DBVersion = 1
-)
-
 type Database struct {
-	DB *sql.DB
+	DB       *sql.DB
 	Filename string
 }
 
 func New(filename string) (*Database, error) {
-	d :=  &Database{}
+	d := &Database{}
 	if err := d.Open(filename); err != nil {
 		return nil, err
 	}
-	if err := d.Init(); err != nil {
+	if err := d.init(); err != nil {
 		return nil, err
 	}
 	d.Filename = filename
 	return d, nil
+}
+
+func (d *Database) init() error {
+	if _, err := d.DB.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		return err
+	}
+	return d.migrate()
 }
 
 func (d *Database) getUserVersion() (int64, error) {
@@ -60,33 +64,6 @@ func (d *Database) Open(fp string) error {
 
 func (d *Database) Close() error {
 	return d.DB.Close()
-}
-
-func (d *Database) Init() error {
-	if _, err := d.DB.Exec(sqlCreateTableNodes); err != nil {
-		return err
-	}
-	if _, err := d.DB.Exec(sqlCreateTableEdges); err != nil {
-		return err
-	}
-	if _, err := d.DB.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return err
-	}
-
-	version, err := d.getUserVersion()
-	if err != nil {
-		return err
-	}
-	if version == 0 {
-		if err := d.setUserVersion(DBVersion); err != nil {
-			return err
-		}
-	}
-	// else if version < DBVersion {
-	// migrate db
-	//}
-
-	return nil
 }
 
 func (d *Database) beginTx() (*sql.Tx, error) {
