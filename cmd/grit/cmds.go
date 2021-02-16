@@ -1,24 +1,24 @@
 package main
 
 import (
-	"os"
 	"fmt"
-	"time"
 	"io"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/climech/grit/app"
 	"github.com/climech/grit/graph"
 
-	"github.com/jawher/mow.cli"
 	"github.com/fatih/color"
+	cli "github.com/jawher/mow.cli"
 )
 
 func cmdAdd(cmd *cli.Cmd) {
 	cmd.Spec = "[ -p=<predecessor> | -r ] NAME"
 	today := time.Now().Format("2006-01-02")
 	var (
-		name = cmd.StringArg("NAME", "", "node name")
+		name        = cmd.StringArg("NAME", "", "node name")
 		predecessor = cmd.StringOpt(
 			"p predecessor",
 			today,
@@ -38,8 +38,7 @@ func cmdAdd(cmd *cli.Cmd) {
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
-			msg := fmtCreate(fmt.Sprintf("Created root: %s", node))
-			fmt.Println(msg)
+			color.Cyan("(%d)", node.Id)
 		} else {
 			node, err := a.AddSuccessor(*name, *predecessor)
 			if err != nil {
@@ -49,9 +48,8 @@ func cmdAdd(cmd *cli.Cmd) {
 			if node.Predecessors[0].Name == today {
 				accent = color.New(color.FgYellow).SprintFunc()
 			}
-			idstr := accent(fmt.Sprintf("(%d)", node.Predecessors[0].Id))
-			msg := fmt.Sprintf("Created node: %s -> %s", idstr, node)
-			fmt.Println(fmtCreate(msg))
+			highlighted := accent(fmt.Sprintf("(%d)", node.Id))
+			fmt.Printf("(%d) -> %s\n", node.Predecessors[0].Id, highlighted)
 		}
 	}
 }
@@ -177,12 +175,9 @@ func cmdLink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		edge, err := a.LinkNodes(*origin, *target)
-		if err != nil {
+		if _, err := a.LinkNodes(*origin, *target); err != nil {
 			dief("Couldn't link nodes: %v\n", err)
 		}
-		msg := fmtCreate(fmt.Sprintf("Created edge: %s", edge))
-		fmt.Println(msg)
 	}
 }
 
@@ -202,11 +197,6 @@ func cmdUnlink(cmd *cli.Cmd) {
 		if err := a.UnlinkNodes(*origin, *target); err != nil {
 			dief("Couldn't unlink nodes: %v\n", err)
 		}
-		accent := color.New(color.FgCyan).SprintFunc()
-		sel1 := accent(fmt.Sprintf("(%s)", *origin))
-		sel2 := accent(fmt.Sprintf("(%s)", *target))
-		msg := fmtDelete(fmt.Sprintf("Deleted edge: %s -> %s", sel1, sel2))
-		fmt.Println(msg)
 	}
 }
 
@@ -266,7 +256,7 @@ func cmdRename(cmd *cli.Cmd) {
 	cmd.Spec = "NODE NAME"
 	var (
 		selector = cmd.StringArg("NODE", "", "node selector")
-		name = cmd.StringArg("NAME", "", "new name for NODE")
+		name     = cmd.StringArg("NAME", "", "new name for NODE")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -284,7 +274,7 @@ func cmdAlias(cmd *cli.Cmd) {
 	cmd.Spec = "NODE_ID ALIAS"
 	var (
 		selector = cmd.StringArg("NODE_ID", "", "node ID selector")
-		alias = cmd.StringArg("ALIAS", "", "alias string")
+		alias    = cmd.StringArg("ALIAS", "", "alias string")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -330,7 +320,7 @@ func cmdRemove(cmd *cli.Cmd) {
 	var (
 		selectors = cmd.StringsArg("NODE", nil, "node selector(s)")
 		recursive = cmd.BoolOpt("r recursive", false, "remove node and all its descendants")
-		verbose = cmd.BoolOpt("v verbose", false, "print each removed node")
+		verbose   = cmd.BoolOpt("v verbose", false, "print each removed node")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -342,25 +332,34 @@ func cmdRemove(cmd *cli.Cmd) {
 		var msgs []string
 		var errs []error
 
+		appendErr := func(sel string, err error) {
+			errs = append(errs, fmt.Errorf("Couldn't remove %s: %v", sel, err))
+		}
+
 		for _, sel := range *selectors {
 			if *recursive {
-				deleted, err := a.RemoveNodeRecursive(sel)
+				removed, err := a.RemoveNodeRecursive(sel)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Couldn't remove %v: %v", sel, err))
+					appendErr(sel, err)
 					continue
 				}
-				for _, d := range deleted {
-					msg := fmtDelete(fmt.Sprintf("Deleted node: %v ", d))
-					msgs = append(msgs, msg)
+				for _, node := range removed {
+					msgs = append(msgs, fmt.Sprintf("Removed: %v ", node))
 				}
 			} else {
+				removed, err := a.GetGraph(sel)
+				if err != nil {
+					appendErr(sel, err)
+					continue
+				}
 				orphaned, err := a.RemoveNode(sel)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Couldn't remove %v: %v", sel, err))
+					appendErr(sel, err)
+					continue
 				}
-				for _, o := range orphaned {
-					msg := fmtUpdate(fmt.Sprintf("Orphaned node: %v ", o))
-					msgs = append(msgs, msg)
+				msgs = append(msgs, fmt.Sprintf("Removed: %v ", removed))
+				for _, node := range orphaned {
+					msgs = append(msgs, fmt.Sprintf("Orphaned: %v ", node))
 				}
 			}
 		}
@@ -370,6 +369,7 @@ func cmdRemove(cmd *cli.Cmd) {
 				fmt.Println(msg)
 			}
 		}
+
 		for _, e := range errs {
 			fmt.Fprintln(os.Stderr, e)
 		}
@@ -380,9 +380,9 @@ func cmdImport(cmd *cli.Cmd) {
 	cmd.Spec = "[ -p=<predecessor> | -r ] [FILENAME]"
 	today := time.Now().Format("2006-01-02")
 	var (
-		filename = cmd.StringArg("FILENAME", "", "file containing tab-indented lines")
+		filename    = cmd.StringArg("FILENAME", "", "file containing tab-indented lines")
 		predecessor = cmd.StringOpt("p predecessor", today, "predecessor for the tree root(s)")
-		makeRoot = cmd.BoolOpt("r root", false, "create top-level tree(s)")
+		makeRoot    = cmd.BoolOpt("r root", false, "create top-level tree(s)")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -456,7 +456,7 @@ func cmdStat(cmd *cli.Cmd) {
 			die("Node does not exist")
 		}
 
-		if len(node.Predecessors) + len(node.Successors) > 0 {
+		if len(node.Predecessors)+len(node.Successors) > 0 {
 			fmt.Printf("\n%s\n", node.EdgeString())
 		}
 
