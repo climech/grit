@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+
 	"github.com/climech/grit/graph"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -21,6 +22,7 @@ func rowToNode(row *sql.Row) (*graph.Node, error) {
 }
 
 func rowsToNodes(rows *sql.Rows) []*graph.Node {
+	defer rows.Close()
 	var nodes []*graph.Node
 	for rows.Next() {
 		node := &graph.Node{}
@@ -29,7 +31,6 @@ func rowsToNodes(rows *sql.Rows) []*graph.Node {
 		node.Alias = nullableAlias.String
 		nodes = append(nodes, node)
 	}
-	rows.Close()
 	return nodes
 }
 
@@ -43,12 +44,12 @@ func rowToEdge(row *sql.Row) (*graph.Edge, error) {
 }
 
 func rowsToEdges(rows *sql.Rows) []*graph.Edge {
+	defer rows.Close()
 	var edges []*graph.Edge
 	for rows.Next() {
 		edge := &graph.Edge{}
 		rows.Scan(&edge.Id, &edge.OriginId, &edge.DestId)
 		edges = append(edges, edge)
 	}
-	rows.Close()
 	return edges
 }
