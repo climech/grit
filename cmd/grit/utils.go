@@ -15,12 +15,16 @@ func die(a ...interface{}) {
 	os.Exit(1)
 }
 
-func dief(format string, a ...interface{}) {
+func errf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
 	}
 	fmt.Fprint(os.Stderr, msg)
+}
+
+func dief(format string, a ...interface{}) {
+	errf(format, a...)
 	os.Exit(1)
 }
 

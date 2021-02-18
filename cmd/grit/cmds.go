@@ -163,10 +163,10 @@ func cmdUncheck(cmd *cli.Cmd) {
 }
 
 func cmdLink(cmd *cli.Cmd) {
-	cmd.Spec = "ORIGIN TARGET"
+	cmd.Spec = "ORIGIN TARGETS..."
 	var (
-		origin = cmd.StringArg("ORIGIN", "", "origin selector")
-		target = cmd.StringArg("TARGET", "", "target selector")
+		origin  = cmd.StringArg("ORIGIN", "", "origin selector")
+		targets = cmd.StringsArg("TARGETS", nil, "target selector(s)")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -175,8 +175,10 @@ func cmdLink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		if _, err := a.LinkNodes(*origin, *target); err != nil {
-			dief("Couldn't link nodes: %v\n", err)
+		for _, t := range *targets {
+			if _, err := a.LinkNodes(*origin, t); err != nil {
+				errf("Couldn't create link (%s) -> (%s): %v\n", *origin, t, err)
+			}
 		}
 	}
 }
