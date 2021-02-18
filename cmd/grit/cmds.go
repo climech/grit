@@ -459,7 +459,7 @@ func cmdStat(cmd *cli.Cmd) {
 		}
 
 		if len(node.Predecessors)+len(node.Successors) > 0 {
-			fmt.Printf("\n%s\n", node.EdgeString())
+			fmt.Println(node.EdgeString())
 		}
 
 		status := node.Status().String()
@@ -487,8 +487,16 @@ func cmdStat(cmd *cli.Cmd) {
 		fmt.Printf("Status: %s\n", status)
 		fmt.Printf("Predecessors: %d\n", len(node.Predecessors))
 		fmt.Printf("Successors: %d\n", len(node.Successors))
+
 		if node.Alias != "" {
 			fmt.Printf("Alias: %s\n", node.Alias)
 		}
+
+		timeFmt := "2006-01-02 15:04:05"
+		fmt.Printf("Created: %s\n", time.Unix(node.Created, 0).Format(timeFmt))
+		if node.IsCompleted() {
+			fmt.Printf("Checked: %s\n", time.Unix(*node.Completed, 0).Format(timeFmt))
+		}
+
 	}
 }
