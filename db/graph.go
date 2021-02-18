@@ -10,7 +10,7 @@ import (
 // getAdjacent gets both the direct predececessors and successors of the node.
 func getAdjacent(tx *sql.Tx, id int64) ([]*graph.Node, error) {
 	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_completed FROM nodes "+
+		"SELECT node_id, node_name, node_alias, node_created, node_completed FROM nodes "+
 			"LEFT JOIN edges ON node_id = origin_id "+
 			"WHERE dest_id = ?",
 		id,
@@ -25,7 +25,7 @@ func getAdjacent(tx *sql.Tx, id int64) ([]*graph.Node, error) {
 // getPredecessors gets nodes connected to the given node by incoming edges.
 func getPredecessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
 	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_completed FROM nodes "+
+		"SELECT node_id, node_name, node_alias, node_created, node_completed FROM nodes "+
 			"LEFT JOIN edges ON node_id = origin_id "+
 			"WHERE dest_id = ?",
 		id,
@@ -40,7 +40,7 @@ func getPredecessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
 // getSuccessors gets nodes connected to the given node by outgoing edges.
 func getSuccessors(tx *sql.Tx, id int64) ([]*graph.Node, error) {
 	rows, err := tx.Query(
-		"SELECT node_id, node_name, node_alias, node_completed FROM nodes "+
+		"SELECT node_id, node_name, node_alias, node_created, node_completed FROM nodes "+
 			"LEFT JOIN edges ON node_id = dest_id "+
 			"WHERE origin_id = ?",
 		id,

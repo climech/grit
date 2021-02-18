@@ -23,7 +23,7 @@ func scanToNode(s scannable) (*graph.Node, error) {
 	node := &graph.Node{}
 	var alias sql.NullString
 	var completed sql.NullInt64
-	err := s.Scan(&node.Id, &node.Name, &alias, &completed)
+	err := s.Scan(&node.Id, &node.Name, &alias, &node.Created, &completed)
 	if err == nil {
 		node.Alias = alias.String
 		if completed.Valid {

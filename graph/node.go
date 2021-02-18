@@ -50,6 +50,9 @@ type Node struct {
 	// Alias is an optional secondary identifier of the node.
 	Alias string
 
+	// Created holds the Unix timestamp for the node's creation time.
+	Created int64
+
 	// Completed points to the Unix timestamp of when the node was marked as
 	// completed, or nil, if the node hasn't been completed yet.
 	Completed *int64
