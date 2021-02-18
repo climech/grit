@@ -1,8 +1,8 @@
 package db
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 
 	"github.com/climech/grit/graph"
 
@@ -10,7 +10,7 @@ import (
 )
 
 func (d *Database) GetEdge(edgeId int64) (*graph.Edge, error) {
-	row := d.DB.QueryRow( "SELECT * FROM edges WHERE edge_id = ?", edgeId)
+	row := d.DB.QueryRow("SELECT * FROM edges WHERE edge_id = ?", edgeId)
 	return rowToEdge(row)
 }
 
@@ -63,12 +63,12 @@ func createEdge(tx *sql.Tx, originId, destId int64) (int64, error) {
 		return 0, err
 	}
 	if node.HasBackEdge() {
-		return 0, fmt.Errorf("back edges not allowed")
+		return 0, fmt.Errorf("back edges are not allowed")
 	}
 	if node.HasForwardEdge() {
-		return 0, fmt.Errorf("forward edges not allowed")
+		return 0, fmt.Errorf("forward edges are not allowed")
 	}
-	if err := fixStatusBefore(tx, node); err != nil {
+	if err := backpropCompletion(tx, node); err != nil {
 		return 0, err
 	}
 	return edgeId, nil
@@ -133,7 +133,7 @@ func deleteEdgeByEndpoints(tx *sql.Tx, originId, destId int64) error {
 	if err != nil {
 		return err
 	}
-	if err := fixStatusBefore(tx, node); err != nil {
+	if err := backpropCompletion(tx, node); err != nil {
 		return err
 	}
 	return nil

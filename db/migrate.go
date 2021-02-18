@@ -13,7 +13,7 @@ func migrateFrom0(db *sql.DB) error {
 			node_id INTEGER PRIMARY KEY,
 			node_name VARCHAR(100) NOT NULL,
 			node_alias VARCHAR(100) DEFAULT NULL,
-			node_checked BOOLEAN DEFAULT FALSE,
+			node_completed INTEGER DEFAULT NULL,
 
 			UNIQUE(node_alias)
 		)`

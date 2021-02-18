@@ -7,17 +7,40 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func rowToNode(row *sql.Row) (*graph.Node, error) {
+func copyCompletion(value *int64) *int64 {
+	if value == nil {
+		return nil
+	}
+	cp := *value
+	return &cp
+}
+
+type scannable interface {
+	Scan(...interface{}) error
+}
+
+func scanToNode(s scannable) (*graph.Node, error) {
 	node := &graph.Node{}
-	var nullableAlias sql.NullString
-	err := row.Scan(&node.Id, &node.Name, &nullableAlias, &node.Checked)
+	var alias sql.NullString
+	var completed sql.NullInt64
+	err := s.Scan(&node.Id, &node.Name, &alias, &completed)
+	if err == nil {
+		node.Alias = alias.String
+		if completed.Valid {
+			node.Completed = &completed.Int64
+		}
+	}
+	return node, err
+}
+
+func rowToNode(row *sql.Row) (*graph.Node, error) {
+	node, err := scanToNode(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
-	node.Alias = nullableAlias.String
 	return node, nil
 }
 
@@ -25,10 +48,7 @@ func rowsToNodes(rows *sql.Rows) []*graph.Node {
 	defer rows.Close()
 	var nodes []*graph.Node
 	for rows.Next() {
-		node := &graph.Node{}
-		var nullableAlias sql.NullString
-		rows.Scan(&node.Id, &node.Name, &nullableAlias, &node.Checked)
-		node.Alias = nullableAlias.String
+		node, _ := scanToNode(rows)
 		nodes = append(nodes, node)
 	}
 	return nodes

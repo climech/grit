@@ -1,9 +1,10 @@
 package app
 
 import (
-	"testing"
-	"os"
 	"io/ioutil"
+	"os"
+	"testing"
+
 	"github.com/climech/grit/db"
 )
 
@@ -183,17 +184,17 @@ func TestStatusChange(t *testing.T) {
 	if root, err := a.GetGraph(node1.Id); err != nil {
 		t.Fatalf("couldn't get graph: %v", err)
 	} else {
-		if n := root.Get(node2.Id); !n.Checked {
-			t.Fatalf("unchecking node had no effect: %s", n)
+		if n := root.Get(node2.Id); !n.IsCompleted() {
+			t.Errorf("checking node had no effect: %s", n)
 		}
-		if n := root.Get(node3.Id); !n.Checked {
-			t.Fatalf("unchecking node had no effect: %s", n)
+		if n := root.Get(node3.Id); !n.IsCompleted() {
+			t.Errorf("checking node had no effect: %s", n)
 		}
-		if !root.Checked {
-			t.Fatal("checked all successors of node, but node still unchecked")
+		if !root.IsCompleted() {
+			t.Error("checked all successors of root, but root.IsCompleted() = false")
 		}
-		if !root.Get(node4.Id).Checked {
-			t.Fatal("node checked, but successor is unchecked")
+		if !root.Get(node4.Id).IsCompleted() {
+			t.Error("node checked, but successor is still unchecked")
 		}
 	}
 
@@ -211,16 +212,16 @@ func TestStatusChange(t *testing.T) {
 	if root, err := a.GetGraph(node1.Id); err != nil {
 		t.Fatalf("couldn't get graph: %v", err)
 	} else {
-		if n := root.Get(node3.Id); n.Checked {
+		if n := root.Get(node3.Id); n.IsCompleted() {
 			t.Fatalf("unchecking node had no effect: %s", n)
 		}
-		if root.Checked {
+		if root.IsCompleted() {
 			t.Fatal("node unchecked, but predecessor is checked")
 		}
-		if n := root.Get(node2.Id); !n.Checked {
+		if n := root.Get(node2.Id); !n.IsCompleted() {
 			t.Fatalf("unchecking node changed node's sibling(!): %s", n)
 		}
-		if n := root.Get(node4.Id); n.Checked {
+		if n := root.Get(node4.Id); n.IsCompleted() {
 			t.Fatalf("node unchecked, but successor is checked: %s", n)
 		}
 	}

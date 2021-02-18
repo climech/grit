@@ -463,16 +463,14 @@ func cmdStat(cmd *cli.Cmd) {
 		}
 
 		status := node.Status().String()
-		var done, total int
-		node.Tree().EachAfter(func(n *graph.Node, _ int) {
-			// Count the leaves.
-			if len(n.Successors) == 0 {
-				total++
-				if n.Checked {
-					done++
-				}
+		leaves := node.Tree().Leaves()
+		done := 0
+		total := len(leaves)
+		for _, leaf := range leaves {
+			if leaf.IsCompleted() {
+				done++
 			}
-		})
+		}
 		if total > 0 {
 			status += fmt.Sprintf(" (%d/%d)", done, total)
 		}

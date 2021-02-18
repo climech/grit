@@ -1,8 +1,9 @@
 package db
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/climech/grit/graph"
 
@@ -75,7 +76,7 @@ func (d *Database) GetNodeByAlias(alias string) (*graph.Node, error) {
 func (d *Database) GetRoots() ([]*graph.Node, error) {
 	rows, err := d.DB.Query(
 		"SELECT * FROM nodes " +
-		"WHERE NOT EXISTS(SELECT * FROM edges WHERE dest_id = node_id)",
+			"WHERE NOT EXISTS(SELECT * FROM edges WHERE dest_id = node_id)",
 	)
 	if err != nil {
 		return nil, err
@@ -91,37 +92,45 @@ func isDateNode(tx *sql.Tx, id int64) (bool, error) {
 	return (graph.ValidateDateNodeName(node.Name) == nil), nil
 }
 
-func fixStatusBefore(tx *sql.Tx, node *graph.Node) error {
-	var update []*graph.Node
+func backpropCompletion(tx *sql.Tx, node *graph.Node) error {
+	var updateQueue []*graph.Node
+	var backprop func(*graph.Node)
 
-	found := true
-	for found {
-		found = false
-		node.Each(func(n *graph.Node) {
-			if len(n.Successors) == 0 {
-				return
+	backprop = func(n *graph.Node) {
+		allSuccessorsCompleted := true
+		for _, succ := range n.Successors {
+			if !succ.IsCompleted() {
+				allSuccessorsCompleted = false
+				break
 			}
-			allChecked := true
-			for _, succ := range n.Successors {
-				if !succ.Checked {
-					allChecked = false
-					break
-				}
+		}
+		if n.IsCompleted() != allSuccessorsCompleted {
+			if allSuccessorsCompleted {
+				n.Completed = copyCompletion(n.Successors[0].Completed)
+			} else {
+				n.Completed = nil
 			}
-			if n.Checked != allChecked {
-				n.Checked = allChecked
-				found = true
-				update = append(update, n)
-			}
-		})
+			updateQueue = append(updateQueue, n)
+		}
+		for _, pre := range n.Predecessors {
+			backprop(pre)
+		}
 	}
 
-	for _, node := range update {
-		_, err := tx.Exec("UPDATE nodes SET node_checked = ? WHERE node_id = ?", node.Checked, node.Id)
+	for _, leaf := range node.Leaves() {
+		for _, pre := range leaf.Predecessors {
+			backprop(pre)
+		}
+	}
+
+	for _, node := range updateQueue {
+		_, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?",
+			node.Completed, node.Id)
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -139,7 +148,7 @@ func createNode(tx *sql.Tx, name string, predecessorId int64) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if err := fixStatusBefore(tx, node); err != nil {
+		if err := backpropCompletion(tx, node); err != nil {
 			return 0, err
 		}
 	}
@@ -194,7 +203,7 @@ func (d *Database) CreateSuccessorOfDateNode(date, name string) (int64, error) {
 		}
 		return nil
 	}
-	
+
 	if err := d.execTxFunc(txf); err != nil {
 		return 0, err
 	}
@@ -213,7 +222,7 @@ func createTree(tx *sql.Tx, node *graph.Node, predecessorId int64) (int64, error
 	// Traverse non-recursively so we can return immediately in case of error.
 	stack := []*graph.Node{tree}
 	for len(stack) > 0 {
-		current := stack[len(stack) - 1]
+		current := stack[len(stack)-1]
 		if len(current.Successors) > 0 {
 			var child *graph.Node
 			child, current.Successors = current.Successors[0], current.Successors[1:] // shift
@@ -226,7 +235,7 @@ func createTree(tx *sql.Tx, node *graph.Node, predecessorId int64) (int64, error
 				stack = append(stack, child) // push
 			}
 		} else {
-			stack = stack[:len(stack) - 1] // pop
+			stack = stack[:len(stack)-1] // pop
 		}
 	}
 
@@ -277,16 +286,22 @@ func (d *Database) CreateTreeAsSuccessorOfDateNode(date string, node *graph.Node
 	return rootId, nil
 }
 
-func (d *Database) checkNode(nodeId int64, value bool) error {
+func (d *Database) checkNode(nodeId int64, check bool) error {
+	var value *int64
+	if check {
+		now := time.Now().Unix()
+		value = &now
+	}
+
 	update := func(tx *sql.Tx, node *graph.Node) error {
-		r, err := tx.Exec("UPDATE nodes SET node_checked = ? WHERE node_id = ?", value, node.Id)
+		r, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?", value, node.Id)
 		if err != nil {
 			return err
 		}
 		if count, _ := r.RowsAffected(); count == 0 {
 			return fmt.Errorf("node does not exist")
 		}
-		node.Checked = value
+		node.Completed = copyCompletion(value)
 		return nil
 	}
 
@@ -298,18 +313,17 @@ func (d *Database) checkNode(nodeId int64, value bool) error {
 		if node == nil {
 			return fmt.Errorf("node does not exist")
 		}
+		// Update local root.
 		if err := update(tx, node); err != nil {
 			return err
 		}
-		descendants := node.NodesAfter()
-		for _, d := range descendants {
-			if d.Checked != value {
-				if err := update(tx, d); err != nil {
-					return err
-				}
+		// Update direct and indirect successors.
+		for _, n := range node.NodesAfter() {
+			if err := update(tx, n); err != nil {
+				return err
 			}
 		}
-		if err := fixStatusBefore(tx, node); err != nil {
+		if err := backpropCompletion(tx, node); err != nil {
 			return err
 		}
 		return nil
@@ -329,7 +343,7 @@ func (d *Database) UncheckNode(nodeId int64) error {
 	return d.checkNode(nodeId, false)
 }
 
-func (d *Database) RenameNode(nodeId int64, name string) error  {
+func (d *Database) RenameNode(nodeId int64, name string) error {
 	r, err := d.DB.Exec("UPDATE nodes SET node_name = ? WHERE node_id = ?", name, nodeId)
 	if err != nil {
 		return err
@@ -367,7 +381,7 @@ func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 		if err := deleteNode(tx, id); err != nil {
 			return err
 		}
-		if err := fixStatusBefore(tx, node); err != nil {
+		if err := backpropCompletion(tx, node); err != nil {
 			return err
 		}
 		orphans = node.Successors
@@ -420,7 +434,7 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 			}
 		}
 
-		if err := fixStatusBefore(tx, node); err != nil {
+		if err := backpropCompletion(tx, node); err != nil {
 			return err
 		}
 		return nil

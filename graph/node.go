@@ -1,12 +1,13 @@
 package graph
 
 import (
-	"fmt"
-	"time"
-	"errors"
-	"strings"
-	"unicode/utf8"
 	"container/list"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+	"unicode/utf8"
+
 	"github.com/fatih/color"
 )
 
@@ -43,33 +44,53 @@ const (
 )
 
 type Node struct {
-	Id int64
+	Id   int64
 	Name string
+
+	// Alias is an optional secondary identifier of the node.
 	Alias string
-	Comment string
-	Checked bool
+
+	// Completed points to the Unix timestamp of when the node was marked as
+	// completed, or nil, if the node hasn't been completed yet.
+	Completed *int64
+
 	Predecessors []*Node
-	Successors []*Node
+	Successors   []*Node
 }
 
 func NewNode(name string) *Node {
 	return &Node{Name: name}
 }
 
-func (n *Node) Status() TaskStatus {
-	if n.Checked {
-		return TaskStatusCompleted
-	} else if len(n.Successors) > 0 {
-		checked := false
-		n.EachAfter(func(current *Node, _ int) {
-			if checked { return }
-			if current.Checked {
-				checked = true
-			}
-		})
-		if checked {
-			return TaskStatusInProgress
+func (n *Node) IsCompleted() bool {
+	return n.Completed != nil
+}
+
+func (n *Node) IsInProgress() bool {
+	if n.IsCompleted() {
+		return false
+	}
+	var partlyCompleted bool
+	n.EachAfter(func(current *Node, _ int) {
+		if partlyCompleted {
+			return
 		}
+		if current.IsCompleted() {
+			partlyCompleted = true
+		}
+	})
+	return partlyCompleted
+}
+
+func (n *Node) IsInactive() bool {
+	return !n.IsCompleted() && !n.IsInProgress()
+}
+
+func (n *Node) Status() TaskStatus {
+	if n.IsCompleted() {
+		return TaskStatusCompleted
+	} else if n.IsInProgress() {
+		return TaskStatusInProgress
 	}
 	return TaskStatusInactive
 }
@@ -81,7 +102,7 @@ func (n *Node) Copy() *Node {
 
 	// Copy the nodes, ignore the edges.
 	for _, src := range nodes {
-		newNodes[src.Id] = &Node{Id: src.Id, Name: src.Name, Checked: src.Checked}
+		newNodes[src.Id] = &Node{Id: src.Id, Name: src.Name, Completed: src.Completed}
 	}
 
 	// Connect the nodes.
@@ -109,11 +130,11 @@ func (n *Node) HasForwardEdge() (found bool) {
 
 	// To allow for cross edges, record the current source node for each
 	// node at the time of discovery.
-	var currentSource *Node 
+	var currentSource *Node
 	source := make(map[*Node]*Node)
 
 	// Set the initial state for each node.
-	n.Each(func(current *Node){
+	n.Each(func(current *Node) {
 		color[current] = sswhite
 		source[current] = nil
 	})
@@ -131,7 +152,9 @@ func (n *Node) HasForwardEdge() (found bool) {
 			case sswhite: // tree edge
 				dfs(succ)
 			}
-			if found { return }
+			if found {
+				return
+			}
 		}
 		color[current] = ssblack
 	}
@@ -142,7 +165,9 @@ func (n *Node) HasForwardEdge() (found bool) {
 			if c, _ := color[node]; c == sswhite {
 				currentSource = node
 				dfs(node)
-				if found { break }
+				if found {
+					break
+				}
 			}
 		}
 	} else {
@@ -150,7 +175,9 @@ func (n *Node) HasForwardEdge() (found bool) {
 		for _, node := range n.GetAll() {
 			if c, _ := color[node]; c == sswhite {
 				dfs(node)
-				if found { break }
+				if found {
+					break
+				}
 			}
 		}
 	}
@@ -164,7 +191,7 @@ func (n *Node) HasBackEdge() (found bool) {
 	color := make(map[*Node]tricolor)
 
 	// Set the initial state for each node.
-	n.Each(func(cur *Node){
+	n.Each(func(cur *Node) {
 		color[cur] = sswhite
 	})
 
@@ -178,7 +205,9 @@ func (n *Node) HasBackEdge() (found bool) {
 			case sswhite: // tree edge
 				dfs(succ)
 			}
-			if found { return }
+			if found {
+				return
+			}
 		}
 		color[current] = ssblack
 	}
@@ -186,7 +215,9 @@ func (n *Node) HasBackEdge() (found bool) {
 	for _, node := range n.GetAll() {
 		if c, _ := color[node]; c == sswhite {
 			dfs(node)
-			if found { break }
+			if found {
+				break
+			}
 		}
 	}
 
@@ -199,9 +230,12 @@ func (n *Node) String() string {
 	var checkbox string
 
 	switch n.Status() {
-	case TaskStatusCompleted:  checkbox = "[x]"
-	case TaskStatusInProgress: checkbox = "[~]"
-	case TaskStatusInactive:   checkbox = "[ ]"
+	case TaskStatusCompleted:
+		checkbox = "[x]"
+	case TaskStatusInProgress:
+		checkbox = "[~]"
+	case TaskStatusInactive:
+		checkbox = "[ ]"
 	}
 
 	var id string
@@ -252,7 +286,9 @@ func (n *Node) TreeString() string {
 	// cont determines if the line should be continued for each of the current
 	// indent levels.
 	traverse = func(n *Node, cont []bool) {
-		if _, ok := visited[n]; ok { return }
+		if _, ok := visited[n]; ok {
+			return
+		}
 		visited[n] = true
 
 		var indent string
@@ -274,7 +310,7 @@ func (n *Node) TreeString() string {
 		output += fmt.Sprintf("%s%s\n", indent, n)
 
 		for i, succ := range n.Successors {
-			if i != len(n.Successors) - 1 {
+			if i != len(n.Successors)-1 {
 				traverse(succ, append(cont, true))
 			} else {
 				traverse(succ, append(cont, false))
@@ -307,14 +343,14 @@ func (n *Node) EdgeString() string {
 	}
 
 	padleft := func(text string, n int) string {
-		return strings.Repeat(" ", n - utf8.RuneCountInString(text)) + text
+		return strings.Repeat(" ", n-utf8.RuneCountInString(text)) + text
 	}
 
 	var output string
 	maxpre := maxRuneCountInStrings(predecessors)
 	indent := 0
 	left := 0
-	
+
 	if length := len(predecessors); length == 0 {
 		output += strings.Repeat(" ", indent)
 		left = indent
@@ -330,7 +366,7 @@ func (n *Node) EdgeString() string {
 				id := padleft(pre, maxpre)
 				if i == 0 {
 					output += spaces + id + " ───┐\n"
-				} else if i != length - 1 {
+				} else if i != length-1 {
 					output += spaces + id + " ───┤\n"
 				} else {
 					output += spaces + id + " ───┴─── "
@@ -351,8 +387,8 @@ func (n *Node) EdgeString() string {
 		spaces := strings.Repeat(" ", left)
 		for i, succ := range successors {
 			if i == 0 {
-				output +=          " ───┬─── " + succ + "\n"
-			} else if i != length - 1 {
+				output += " ───┬─── " + succ + "\n"
+			} else if i != length-1 {
 				output += spaces + "    ├─── " + succ + "\n"
 			} else {
 				output += spaces + "    └─── " + succ + "\n"
@@ -432,8 +468,8 @@ func (n *Node) RemovePredecessor(predecessor *Node) error {
 }
 
 // Each calls f for each node in the graph.
-func (n *Node) Each(f func (*Node)) {
-	if len(n.Predecessors) + len(n.Successors) == 0 {
+func (n *Node) Each(f func(*Node)) {
+	if len(n.Predecessors)+len(n.Successors) == 0 {
 		f(n)
 		return
 	}
@@ -459,6 +495,17 @@ func (n *Node) Each(f func (*Node)) {
 			}
 		}
 	}
+}
+
+// Leaves returns a slice of nodes with zero successors.
+func (n *Node) Leaves() []*Node {
+	var leaves []*Node
+	n.Each(func(current *Node) {
+		if len(current.Successors) == 0 {
+			leaves = append(leaves, current)
+		}
+	})
+	return leaves
 }
 
 // GetAll returns all graph nodes in a slice.
@@ -553,7 +600,7 @@ func (n *Node) EachAfter(f func(*Node, int)) {
 			f(current, distance)
 		}
 		visited[current.Id] = true
-		
+
 		for _, succ := range current.Successors {
 			traverse(succ, distance+1)
 		}
@@ -586,7 +633,7 @@ func (n *Node) EachBefore(f func(*Node, int)) {
 			f(current, distance)
 		}
 		visited[current.Id] = true
-		
+
 		for _, pre := range current.Predecessors {
 			traverse(pre, distance-1)
 		}
