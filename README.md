@@ -1,27 +1,48 @@
 # Grit #
 
-Grit is a personal task management tool which regards tasks as nodes in a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph), rather than elements in a traditional to-do list. The graph structure enables subdivision of tasks and seamless integration between short-term and long-term goals.
 
-## Installation ##
+Grit is an experimental personal task management tool that represents tasks as nodes of a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph). The graph structure enables the subdivision of tasks, and seamlessly integrates short-term and long-term goals.
 
-Make sure you have both `go` and `gcc` installed, then:
+## Contents
+
+* [Build instructions](#build-instructions)
+  * [Make](#make)
+  * [Docker](#docker)
+* [Introduction](#introduction)
+* [A practical guide](#a-practical-guide)
+  * [Basic usage](#basic-usage)
+  * [Successors](#successors)
+  * [Roots](#roots)
+  * [Links](#links)
+  * [Pointers](#pointers)
+    * [Organizing tasks](#organizing-tasks)
+    * [A reading challenge](#a-reading-challenge)
+  * [More information](#more-information)
+* [License](#license)
+
+
+## Build instructions ##
+
+### Make ###
+
+Make sure `go` and `gcc` are installed on your system. Get the [latest release](https://github.com/climech/grit/releases), then run:
 
 ```
-$ git clone https://github.com/climech/grit.git
-$ cd grit/
 $ make && sudo make install
 ```
 
-**Note:** Grit is still in very early stages. Things may break, so it's a good idea to make backups of `~/.config/grit`.
+### Docker ###
 
-## How it works ##
+(TODO)
 
-Grit is based on two premises:
+## Introduction ##
 
-1. Breaking up a problem into smaller, more manageable parts and tackling them one by one is generally a good approach to problem-solving; if needed, those parts can be further subdivided into yet smaller ones, and so on.
-2. Keeping track of your progress across time improves focus and motivation, especially with many parallel tasks spanning multiple days.
+Grit's design is based on two premises:
 
-A bigger task can be represented by a tree, e.g.:
+1. Breaking a problem up into smaller, more manageable parts is generally a good approach to problem-solving.
+2. Precisely tracking your progress across time improves focus by removing the mental overhead caused by many parallel tasks spanning multiple days.
+
+A big task can be represented as a tree, e.g.:
 
 ```
 [~] Digitize family photos
@@ -31,30 +52,35 @@ A bigger task can be represented by a tree, e.g.:
  └──[ ] ...
 ```
 
-In this arrangement, completing all the subtasks of a task is equivalent to completing the task. It becomes useful to allow cross edges between nodes belonging to different trees (see _Links_), so we use a more general structure of the directed acyclic graph (DAG) in which the arrows point from parent tasks (predecessors) to their subtasks (successors):
+Here, the parent task is divided into a number of subtasks. Completing the subtasks is equivalent to completing the parent task. Trees are quite useful by themselves, but we can gain some extra powers by using the more flexible structure of a directed acyclic graph (DAG) instead:
 
-![Figure 1](https://i.imgur.com/IQkHFIC.png)
 
-A **date node** (or **d-node**) is a special case of node which enables us to associate tasks with specific dates. They are identified by their names, which are dates in the format `YYYY-MM-DD`. Date nodes exist so long as there are successors connected to them. They are created and destroyed automatically.
+<p align="center">
+  <img src="docs/assets/fig1.png" width="271" />
+</p>
 
-Grit tasks exist in one of the three possible states: _inactive_ (` `), _in progress_ (`~`) and _completed_ (`x`). _Inactive_ means the task hasn't been started yet. _In progress_ indicates that some of the task's subtasks have been completed.
+In a DAG, tasks are connected to one another by *directed links* (or *edges*). For our purposes, the direction flows from a task (*predecessor*) to one or more subtasks (*successors*). Unlike tree nodes, DAG nodes can have multiple predecessors, allowing us to create cross links between different task trees.
+
+To add a time dimension to the structure, *date nodes* are introduced. A date node is a root node with a special name that conforms to the date format `YYYY-MM-DD`. Successors of a date node are supposed to be completed on the stated date. Date nodes exist so long as there are successors attached to them. They are created and destroyed automatically.
+
+At any given time, each Grit task is said to be in one of the three states: _inactive_ `[ ]`, _in progress_ `[~]` and _completed_ `[x]`. _Inactive_ means work on the task hasn't started yet. _In progress_ indicates that some of its subtasks have been completed.
 
 ## A practical guide ##
 
-### A simple list ###
+### Basic usage ###
 
 Let's add a few things we want to do today:
 
 ```
 $ grit add "Take out the trash"
-[++] Created node: (1) -> [ ] Take out the trash (2)
+(1) -> (2)
 $ grit add "Do the laundry"
-[++] Created node: (1) -> [ ] Do the laundry (3)
+(1) -> (3)
 $ grit add "Call Dad"
-[++] Created node: (1) -> [ ] Call Dad (4)
+(1) -> (4)
 ```
 
-Run `grit` without arguments to display the current date node.
+Run `grit` without arguments to display the current date node:
 
 ```
 $ grit
@@ -64,7 +90,7 @@ $ grit
  └──[ ] Call Dad (4)
 ```
 
-So far it looks like an old-fashioned to-do list. We can mark tasks as completed using the `check` command.
+So far it looks like an old-fashioned to-do list. We can mark tasks as completed using the `check` command:
 
 ```
 $ grit check 2
@@ -75,35 +101,29 @@ $ grit
  └──[ ] Call Dad (4)
 ```
 
-The change is automatically propagated through the graph. We can see that the status of the date node has changed to _in progress_ (~).
+The change is automatically propagated through the graph. We can see that the status of the date node has changed to _in progress_.
 
-### Adding successors ###
+### Successors ###
 
-Let's add another task.
+Let's add another task:
 
 ```
 $ grit add "Get groceries"
-[++] Created node: (1) -> [ ] Get groceries (5)
-$ grit
-[~] 2020-11-10 (1)
- ├──[x] Take out the trash (2)
- ├──[ ] Do the laundry (3)
- ├──[ ] Call Dad (4)
- └──[ ] Get groceries (5)
+(1) -> (5)
 ```
 
-Say we want to break it up into smaller pieces. In Grit, this is equivalent to adding successors to the node. We can do this by specifying the predecessor (or parent) with the `-p` flag.
+To divide it into subtasks, we need to specify the predecessor (when no predecessor is given, `add` defaults to the current date node):
 
 ```
 $ grit add -p 5 "Bread"
-[++] Created node: (5) -> [ ] Bread (6)
+(5) -> (6)
 $ grit add -p 5 "Milk"
-[++] Created node: (5) -> [ ] Milk (7)
+(5) -> (7)
 $ grit add -p 5 "Eggs"
-[++] Created node: (5) -> [ ] Eggs (8)
+(5) -> (8)
 ```
 
-Now we have task 5 pointing to subtasks 6, 7 and 8. We can go infinitely deep if needed.
+Task 5 is now pointing to subtasks 6, 7 and 8. We can go infinitely deep if needed.
 
 ```
 $ grit
@@ -117,67 +137,65 @@ $ grit
      └──[ ] Eggs (8)
 ```
 
-Check the whole branch:
+Check the entire branch:
 
 ```
 $ grit check 5
 $ grit tree 5
-[x] Do shopping (5)
- ├──[x] Get rice (6)
- ├──[x] Get hand sanitizer (7)
- └──[x] Get toilet paper (8)
+[x] Get groceries (5)
+ ├──[x] Bread (6)
+ ├──[x] Milk (7)
+ └──[x] Eggs (8)
 ```
 
-The `tree` command prints a pretty tree representation rooted at the given node. When we run `grit` without arguments, `tree` is executed implicitly, defaulting to the current d-node.
+The `tree` command prints a tree view rooted at the given node by following the links. When running `grit` without arguments, `tree` is invoked implicitly, defaulting to the current date node.
 
-### Adding roots ###
+### Roots ###
 
-So far we've only added successors to other nodes—`add` adds successors to the current d-node by default.
+Some tasks are big—they can't realistically be completed in one day, so we can't associate them with a single date node. The trick is to create a root task and break it up into smaller subtasks. Then we can associate the subtasks with specific dates.
 
-Say we have a bigger task to complete—work through an Algebra textbook. This will definitely take more than one day to complete, so we can't simply make it a successor of a single date node.
-
-Let's create a new root node, then. Books are already structured like trees, making it easier for us. Our book is divided into 35 chapters, each of which is divided into smaller sections and example exercises. To create a root, add `-r` before the name.
+To create a root, run `add` with the `-r` option:
 
 ```
-$ grit add -r "Work through Higher Algebra by H. S. Hall, S. R. Knight"
-[++] Created root: [ ] Work through Higher Algebra by H. S. Hall, S. R. Knight (9)
+$ grit add -r "Work through Higher Algebra - Hall, Henry S."
+(9)
 ```
 
-We will be referencing this node a lot, so it's a good idea to give it an alias.
+We will be referencing this node a lot—it's a good idea to give it a unique alias. We can always use aliases in place of numeric IDs.
 
 ```
 $ grit alias 5 textbook
 ```
 
-Adding the chapters one by one would be very laborious. Let's use a Bash loop to make the job easier.
+The book has 35 chapters—adding them each individually would be very laborious! We can use a Bash loop to make the job easier (a feature like this will probably be added in a future release):
 
 ```
 $ for i in {1..35}; do grit add -p textbook "Chapter $i"; done
-[++] Created node: (9) -> [ ] Chapter 1 (10)
-[++] Created node: (9) -> [ ] Chapter 2 (11)
-[++] Created node: (9) -> [ ] ...
-[++] Created node: (9) -> [ ] Chapter 35 (44)
+(9) -> (10)
+(9) -> (11)
+...
+(9) -> (44)
 ```
 
-Working through a chapter involves reading all the sections and solving all the exercises it contains. Chapter 1 has 28 exercises, numbered 1-28. I like to have them all as separate nodes—this way I can solve them over a number of days without losing track, while I work on other chapters.
+Working through a chapter involves reading it and solving all the exercises included at the end. Chapter 1 has 28 exercises. We can go really granular here and create a node for each:
 
 ```
 $ grit add -p 10 "Read the chapter"
-[++] Created node: (10) -> [ ] Read the chapter (45)
+(10) -> (45)
 $ grit add -p 10 "Solve the exercises"
-[++] Created node: (10) -> [ ] Solve the exercises (46)
+(10) -> (46)
 $ for i in {1..28}; do grit add -p 46 "Solve ex. $i"; done
-[++] Created node: (46) -> [ ] Solve ex. 1 (47)
-[++] Created node: (46) -> [ ] Solve ex. 2 (48)
-[++] Created node: (46) -> ...
-[++] Created node: (46) -> [ ] Solve ex. 28 (74)
+(46) -> (47)
+(46) -> (48)
+...
+(46) -> (74)
 ```
 
 Our tree so far:
 
 ```
 $ grit tree textbook
-[ ] Work through Higher Algebra by H. S. Hall, S. R. Knight (9:textbook)
+[ ] Work through Higher Algebra - Hall, Henry S. (9:textbook)
  ├──[ ] Chapter 1 (10)
  │   ├──[ ] Read the chapter (45)
  │   └──[ ] Solve the exercises (46)
@@ -190,56 +208,44 @@ $ grit tree textbook
  └──[ ] Chapter 35 (44)
 ```
 
-We can create the whole tree this way, or add branches later as we go along.
+We can do this for each chapter, or leave it for later, adding the branches as we go along. In any case, we are ready to use this tree to schedule our day!
 
-Run `stat` to display more information about the node:
+Before we proceed, let's run `stat` to see some more information about the node:
 
 ```
 $ grit stat textbook
 
 (9) ───┬─── (10)
+       ├─── (11)
        ├─── ...
        └─── (44)
 
 ID: 9
-Name: Work through Higher Algebra by H. S. Hall, S. R. Knight
+Name: Work through Higher Algebra - Hall, Henry S.
 Status: inactive (0/63)
 Predecessors: 0
 Successors: 35
 Alias: textbook
 ```
 
-The current progress is calculated by counting the leaves reachable from the node.
+We can confirm that the node is a root—it has no predecessors. There's a little map showing the node's direct predecessors and successors. Progress is also displayed, calculated by counting all the leaves reachable from the node.
 
 ### Links ###
 
-Say we want to work on the first chapter of our Algebra book today. Let's add a new task to the current d-node.
+Say we want to read the first chapter of our Algebra book and solve a few exercises today. Let's add a new task to the current date node:
 
 ```
 $ grit add "Work on ch. 1 of the Algebra textbook"
-[++] Created node: (1) -> [ ] Work on ch. 1 of the Algebra textbook (75)
+(1) -> (75)
 ```
 
-We can link this node to the relevant subtasks of `textbook`.
+Create cross links to the relevant `textbook` nodes:
 
 ```
 $ grit link 75 45
-[++] Created edge: (75) -> (45)
 $ grit link 75 47
-[++] Created edge: (75) -> (47)
 $ grit link 75 48
-[++] Created edge: (75) -> (48)
 $ grit link 75 49
-[++] Created edge: (75) -> (49)
-```
-
-Now we have nodes with multiple parents, highlighted in the figure below. We've turned our trees into a proper digraph!
-
-![Figure 2](https://i.imgur.com/2efpjvQ.png)
-
-The connected nodes show up in the current d-node view:
-
-```
 $ grit
 [~] 2020-11-10 (1)
  ├──[x] ...
@@ -250,7 +256,7 @@ $ grit
      └──[ ] Solve ex. 3 (49)
 ```
 
-We can also run `stat` to confirm that the nodes have two parents (predecessors):
+Let's take a closer look at one them:
 
 ```
 $ grit stat 45
@@ -265,25 +271,28 @@ Predecessors: 2
 Successors: 0
 ```
 
-Checking the tasks will be reflected in all predecessor views.
+Two predecessors! Now we're really taking advantage of the digraph. If you remember, the tree view can only show us the successors reachable from the given node. This gives us glimpses into the underlying graph—if we wanted to draw an accurate representation of the whole structure, it might look something like this:
+
+<p align="center">
+  <img src="docs/assets/fig2.png" width="750" />
+</p>
+
+This looks *somewhat* readable. Sadly, attempts to draw an accurate representation of a structure even slightly more complex than this typically result in a tangled mess. Because of this, Grit can only show us the parts of the graph that we ask for specifically, one `tree` (or `ls`) at a time. Beyond that it relies on the user to fill in the gaps.
+
+Any changes to the cross-linked nodes will propagate back through the entire graph:
 
 ```
 $ grit check 75
 $ grit
 [x] 2020-11-10 (1)
  ├──[x] ...
- └──[x] Work on ch. 1 of the Algebra textbook (75)
+ └──[x] Work on ch. 1 of the algebra textbook (75)
      ├──[x] Read the chapter (45)
      ├──[x] Solve ex. 1 (47)
      ├──[x] Solve ex. 2 (48)
      └──[x] Solve ex. 3 (49)
-```
-
-The d-node is now completed, but there's still more work to be done for `textbook`:
-
-```
 $ grit tree textbook
-[~] Work through Higher Algebra by H. S. Hall, S. R. Knight (9:textbook)
+[~] Work through Higher Algebra - Hall, Henry S. (9:textbook)
  ├──[~] Chapter 1 (10)
  │   ├──[x] Read the chapter (45)
  │   └──[~] Solve the exercises (46)
@@ -297,80 +306,122 @@ $ grit tree textbook
  └──[ ] Chapter 35 (44)
 ```
 
-Again, `stat` will tell us how much progress we've made so far:
+We can see we've completed all the tasks for the day, but there's still work to be done under the `textbook` node. We can schedule more work for tomorrow:
 
 ```
-$ grit stat textbook
-
-(9) ───┬─── (10)
-       ├─── ...
-       └─── (44)
-
-ID: 9
-Name: Work through Higher Algebra by H. S. Hall, S. R. Knight
-Status: in progress (4/63)
-Predecessors: 0
-Successors: 35
-Alias: textbook
+$ grit add -p 2020-11-11 "Work on the algebra textbook"
+(149) -> (150)
+$ grit add -p 150 "Solve exercises from ch. 1"
+(149) -> (151)
+$ grit link 151 50
+$ grit link 151 51
+$ grit link 151 52
+$ grit link 151 53
+$ grit link 151 54
+$ grit add -p 150 "Work on ch. 2"
+(149) -> (152)
+$ grit link 152 76
+$ grit link 152 78
+$ grit link 152 79
+$ grit link 152 80
+$ grit tree 2020-11-11
+[x] 2020-11-10 (149)
+ └──[ ] Work on the algebra textbook (150)
+     ├──[ ] Solve exercises from ch. 1 (151)
+     │   ├──[ ] Solve ex. 4 (50)
+     │   ├──[ ] Solve ex. 5 (51)
+     │   ├──[ ] Solve ex. 6 (52)
+     │   ├──[ ] Solve ex. 7 (53)
+     │   └──[ ] Solve ex. 8 (54)
+     └──[ ] Work on ch. 2 (152)
+         ├──[ ] Read the chapter (76)
+         ├──[ ] Solve ex. 1 (78)
+         ├──[ ] Solve ex. 2 (79)
+         └──[ ] Solve ex. 3 (80)
 ```
 
-### Emerging patterns: a reading challenge ###
+### Pointers ###
 
-Giving yourself a challenge can be a nice motivational tool. Let's say our goal is to read 25 books this year. We start with the root task:
+We can define a *pointer* as a node whose sole purpose is to link to other nodes. Pointers can be used to classify tasks, or as placeholders for tasks expected to be added in the future.
+
+#### Organizing tasks ####
+
+One aspect where Grit differs from other productivity tools is the lack of tags. This is by design—Grit is largely an experiment, and the idea is to solve problems by utilizing the graph structure to the fullest.
+
+How do we organize our tasks without tags, then? As we add more and more nodes at the root level, things start to get messy. Running `grit ls` may result in a long list of assorted nodes. The Grit way to solve this is to make pointers.
+
+For example, if our algebra textbook was just one of many textbooks, we could create a node named "Textbooks" and point it at them:
 
 ```
-$ grit add -r "Challenge: Read 25 books in 2020"
-[++] Created root: [ ] Challenge: Read 25 books in 2020 (76)
+grit add -r "Textbooks"
+(420)
+grit alias 420 textbooks
+grit link textbooks 81
+grit link textbooks 184
+grit link textbooks 239
+grit ls textbooks
+[x] Higher Algebra - Hall, Henry S. (81)
+[~] Calculus - Spivak, Michael (184)
+[ ] Linear Algebra - Hefferon, Jim (349)
+```
+
+This gives them a predecessor, so they no longer appear at the root level.
+
+Note that the same node can be pointed to by an infinite number of nodes, allowing us to create overlapping categories, e.g. the same node may be reachable from "Books to read" and "Preparation for the upcoming talk", etc.
+
+#### A reading challenge ####
+
+A challenge can be a good motivational tool:
+
+```
+$ grit add -r "Read 24 books in 2020"
+(76)
 $ grit alias 76 rc2020
 ```
 
-We could stop here, and add the books to it as we go, but this alone won't give us a nice way to check our progress. Let's go a little further and create a "slot" for each of the 25 books. We'll be able to link these slots to the relevant daily tasks. To create the slots, we'll again use a Bash loop:
+We could simply add books to it as we go, but this wouldn't give us a nice way to track our progress. Let's go a step further and create a pointer for each of the 24 books.
 
 ```
-$ for i in {1..25}; do grit add -p rc2020 "Book $i"; done
-[++] Created node: (76) -> [ ] Book 1 (77)
-[++] Created node: (76) -> [ ] Book 2 (78)
-[++] Created node: (76) -> [ ] ...
-[++] Created node: (76) -> [ ] Book 25 (101)
-```
-
-Now we have a nice tree:
-```
+$ for i in {1..24}; do grit add -p rc2020 "Book $i"; done
+(76) -> (77)
+(76) -> (78)
+...
+(76) -> (100)
 $ grit tree rc2020
-[ ] Challenge: Read 25 books in 2020 (76:rc2020)
+[ ] Challenge: Read 24 books in 2020 (76:rc2020)
  ├──[ ] Book 1 (77)
  ├──[ ] Book 2 (78)
  ├──[ ] ...
- └──[ ] Book 25 (101)
+ └──[ ] Book 24 (100)
 ```
 
-We can link the "slots" to the specific books we read during the year:
+Now, whenever we decide what book we want to read next, we can simply create a new task and link the pointer to it:
 
 ```
-$ grit add "Read 1984 by G. Orwell"
-[++] Created node: (1) -> [ ] Read 1984 by G. Orwell (102)
-$ grit link 77 102
-[++] Created edge: (77) -> (102)
-$ grit check 102
+$ grit add "1984 - Orwell, George"
+(1) -> (101)
+$ grit link 77 101
+$ grit check 101
+$ grit tree rc2020
+[~] Challenge: Read 24 books in 2020 (76:rc2020)
+ ├──[x] Book 1 (77)
+ │   └──[x] 1984 - Orwell, George (101)
+ └──[ ] ...
 ```
 
-Check our progress:
+The number of leaves remains the same, so `stat` will correctly display our progress:
 
 ```
 $ grit stat rc2020
-
-(76) ───┬─── (77)
-        ├─── ...
-        └─── (101)
-
-ID: 76
-Name: Challenge: Read 25 books in 2020
-Status: in progress (1/25)
-Predecessors: 0
-Successors: 25
-Alias: rc2020
+...
+Status: in progress (1/24)
+...
 ```
 
------------
+### More information ###
 
-© 2020 climech.org
+The guide should hopefully give you a good idea of how Grit works and how to use it. For more information refer to `grit --help`.
+
+## License ##
+
+This project is released under the [MIT license](https://en.wikipedia.org/wiki/MIT_License).
