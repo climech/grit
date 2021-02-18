@@ -1,9 +1,12 @@
 package app
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/climech/grit/db"
 )
@@ -27,6 +30,14 @@ func tearApp(t *testing.T, a *App) {
 	if err := os.Remove(a.Database.Filename); err != nil {
 		t.Fatalf("error removing file: %v", err)
 	}
+}
+
+func ptrValueToString(ptr interface{}) string {
+	v := reflect.ValueOf(ptr)
+	if v.IsNil() {
+		return "nil"
+	}
+	return fmt.Sprintf("%v\n", reflect.Indirect(v))
 }
 
 // TestLoop fails if it's able to create a loop.
@@ -168,19 +179,21 @@ func TestStatusChange(t *testing.T) {
 		t.Fatal("couldn't create node (4)")
 	}
 
-	// Checking (2) and (3) should cause (1) and (4) to be checked as well.
+	// Checking (3) and (2) should cause (1) and (4) to be checked as well.
 	//
 	//   [x] test (1)
 	//    ├──[x] test (2)
 	//    └──[x] test (3)
 	//        └──[x] test (4)
 	//
-	if err := a.CheckNode(node2.Id); err != nil {
-		t.Fatalf("couldn't check successor (2): %v", err)
-	}
 	if err := a.CheckNode(node3.Id); err != nil {
 		t.Fatalf("couldn't check successor (3): %v", err)
 	}
+	time.Sleep(1 * time.Second) // to make the timestamps different
+	if err := a.CheckNode(node2.Id); err != nil {
+		t.Fatalf("couldn't check successor (2): %v", err)
+	}
+
 	if root, err := a.GetGraph(node1.Id); err != nil {
 		t.Fatalf("couldn't get graph: %v", err)
 	} else {
@@ -195,6 +208,21 @@ func TestStatusChange(t *testing.T) {
 		}
 		if !root.Get(node4.Id).IsCompleted() {
 			t.Error("node checked, but successor is still unchecked")
+		}
+
+		c1 := root.Completed
+		c2 := root.Get(node2.Id).Completed
+		c3 := root.Get(node3.Id).Completed
+		c4 := root.Get(node4.Id).Completed
+
+		if !reflect.DeepEqual(c1, c2) {
+			t.Errorf("backpropped completion time should be the same as in "+
+				"last checked successor; want %v, got %v",
+				ptrValueToString(c2), ptrValueToString(c1))
+		}
+		if !reflect.DeepEqual(c3, c4) {
+			t.Errorf("successor should inherit the completion time from its checked "+
+				"predecessor; want %v, got %v", ptrValueToString(c3), ptrValueToString(c4))
 		}
 	}
 
