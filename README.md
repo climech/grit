@@ -239,13 +239,10 @@ $ grit add "Work on ch. 1 of the Algebra textbook"
 (1) -> (75)
 ```
 
-Create cross links to the relevant `textbook` nodes:
+Create cross links from this node to the relevant `textbook` nodes:
 
 ```
-$ grit link 75 45
-$ grit link 75 47
-$ grit link 75 48
-$ grit link 75 49
+$ grit link 75 45 47 48 49
 $ grit
 [~] 2020-11-10 (1)
  ├──[x] ...
@@ -313,17 +310,10 @@ $ grit add -p 2020-11-11 "Work on the algebra textbook"
 (149) -> (150)
 $ grit add -p 150 "Solve exercises from ch. 1"
 (149) -> (151)
-$ grit link 151 50
-$ grit link 151 51
-$ grit link 151 52
-$ grit link 151 53
-$ grit link 151 54
+$ grit link 151 50 51 52 53 54
 $ grit add -p 150 "Work on ch. 2"
 (149) -> (152)
-$ grit link 152 76
-$ grit link 152 78
-$ grit link 152 79
-$ grit link 152 80
+$ grit link 152 76 78 79 80
 $ grit tree 2020-11-11
 [x] 2020-11-10 (149)
  └──[ ] Work on the algebra textbook (150)
@@ -353,13 +343,11 @@ How do we organize our tasks without tags, then? As we add more and more nodes a
 For example, if our algebra textbook was just one of many textbooks, we could create a node named "Textbooks" and point it at them:
 
 ```
-grit add -r "Textbooks"
+$ grit add -r "Textbooks"
 (420)
-grit alias 420 textbooks
-grit link textbooks 81
-grit link textbooks 184
-grit link textbooks 239
-grit ls textbooks
+$ grit alias 420 textbooks
+$ grit link textbooks 81 184 349
+$ grit ls textbooks
 [x] Higher Algebra - Hall, Henry S. (81)
 [~] Calculus - Spivak, Michael (184)
 [ ] Linear Algebra - Hefferon, Jim (349)
