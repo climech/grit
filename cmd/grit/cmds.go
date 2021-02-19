@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/climech/grit/app"
@@ -15,17 +16,18 @@ import (
 )
 
 func cmdAdd(cmd *cli.Cmd) {
-	cmd.Spec = "[ -p=<predecessor> | -r ] NAME"
+	cmd.Spec = "[ -p=<predecessor> | -r ] NAME_PARTS..."
 	today := time.Now().Format("2006-01-02")
+
 	var (
-		name        = cmd.StringArg("NAME", "", "node name")
-		predecessor = cmd.StringOpt(
-			"p predecessor",
-			today,
-			"predecessor to attach the node to",
-		)
-		makeRoot = cmd.BoolOpt("r root", false, "create a root node, not a successor")
+		nameParts = cmd.StringsArg("NAME_PARTS", nil,
+			"strings to be joined together to form the node's name")
+		predecessor = cmd.StringOpt("p predecessor", today,
+			"predecessor to attach the node to")
+		makeRoot = cmd.BoolOpt("r root", false,
+			"create a root node")
 	)
+
 	cmd.Action = func() {
 		a, err := app.New()
 		if err != nil {
@@ -33,14 +35,16 @@ func cmdAdd(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
+		name := strings.Join(*nameParts, " ")
+
 		if *makeRoot {
-			node, err := a.AddRoot(*name)
+			node, err := a.AddRoot(name)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
 			color.Cyan("(%d)", node.Id)
 		} else {
-			node, err := a.AddSuccessor(*name, *predecessor)
+			node, err := a.AddSuccessor(name, *predecessor)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
