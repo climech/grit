@@ -72,11 +72,11 @@ At any given time, each Grit task is said to be in one of the three states: _ina
 Let's add a few things we want to do today:
 
 ```
-$ grit add "Take out the trash"
+$ grit add Take out the trash
 (1) -> (2)
-$ grit add "Do the laundry"
+$ grit add Do the laundry
 (1) -> (3)
-$ grit add "Call Dad"
+$ grit add Call Dad
 (1) -> (4)
 ```
 
@@ -108,18 +108,18 @@ The change is automatically propagated through the graph. We can see that the st
 Let's add another task:
 
 ```
-$ grit add "Get groceries"
+$ grit add Get groceries
 (1) -> (5)
 ```
 
 To divide it into subtasks, we need to specify the predecessor (when no predecessor is given, `add` defaults to the current date node):
 
 ```
-$ grit add -p 5 "Bread"
+$ grit add -p 5 Bread
 (5) -> (6)
-$ grit add -p 5 "Milk"
+$ grit add -p 5 Milk
 (5) -> (7)
-$ grit add -p 5 "Eggs"
+$ grit add -p 5 Eggs
 (5) -> (8)
 ```
 
@@ -157,7 +157,7 @@ Some tasks are big—they can't realistically be completed in one day, so we can
 To create a root, run `add` with the `-r` option:
 
 ```
-$ grit add -r "Work through Higher Algebra - Hall, Henry S."
+$ grit add -r Work through Higher Algebra - Henry S. Hall
 (9)
 ```
 
@@ -180,9 +180,9 @@ $ for i in {1..35}; do grit add -p textbook "Chapter $i"; done
 Working through a chapter involves reading it and solving all the exercises included at the end. Chapter 1 has 28 exercises. We can go really granular here and create a node for each:
 
 ```
-$ grit add -p 10 "Read the chapter"
+$ grit add -p 10 Read the chapter
 (10) -> (45)
-$ grit add -p 10 "Solve the exercises"
+$ grit add -p 10 Solve the exercises
 (10) -> (46)
 $ for i in {1..28}; do grit add -p 46 "Solve ex. $i"; done
 (46) -> (47)
@@ -195,7 +195,7 @@ Our tree so far:
 
 ```
 $ grit tree textbook
-[ ] Work through Higher Algebra - Hall, Henry S. (9:textbook)
+[ ] Work through Higher Algebra - Henry S. Hall (9:textbook)
  ├──[ ] Chapter 1 (10)
  │   ├──[ ] Read the chapter (45)
  │   └──[ ] Solve the exercises (46)
@@ -221,7 +221,7 @@ $ grit stat textbook
        └─── (44)
 
 ID: 9
-Name: Work through Higher Algebra - Hall, Henry S.
+Name: Work through Higher Algebra - Henry S. Hall
 Status: inactive (0/63)
 Predecessors: 0
 Successors: 35
@@ -235,7 +235,7 @@ We can confirm that the node is a root—it has no predecessors. There's a littl
 Say we want to read the first chapter of our Algebra book and solve a few exercises today. Let's add a new task to the current date node:
 
 ```
-$ grit add "Work on ch. 1 of the Algebra textbook"
+$ grit add Work on ch. 1 of the Algebra textbook
 (1) -> (75)
 ```
 
@@ -289,7 +289,7 @@ $ grit
      ├──[x] Solve ex. 2 (48)
      └──[x] Solve ex. 3 (49)
 $ grit tree textbook
-[~] Work through Higher Algebra - Hall, Henry S. (9:textbook)
+[~] Work through Higher Algebra - Henry S. Hall (9:textbook)
  ├──[~] Chapter 1 (10)
  │   ├──[x] Read the chapter (45)
  │   └──[~] Solve the exercises (46)
@@ -306,12 +306,12 @@ $ grit tree textbook
 We can see we've completed all the tasks for the day, but there's still work to be done under the `textbook` node. We can schedule more work for tomorrow:
 
 ```
-$ grit add -p 2020-11-11 "Work on the algebra textbook"
+$ grit add -p 2020-11-11 Work on the algebra textbook
 (149) -> (150)
-$ grit add -p 150 "Solve exercises from ch. 1"
+$ grit add -p 150 Solve exercises from ch. 1
 (149) -> (151)
 $ grit link 151 50 51 52 53 54
-$ grit add -p 150 "Work on ch. 2"
+$ grit add -p 150 Work on ch. 2
 (149) -> (152)
 $ grit link 152 76 78 79 80
 $ grit tree 2020-11-11
@@ -343,12 +343,12 @@ How do we organize our tasks without tags, then? As we add more and more nodes a
 For example, if our algebra textbook was just one of many textbooks, we could create a node named "Textbooks" and point it at them:
 
 ```
-$ grit add -r "Textbooks"
+$ grit add -r Textbooks
 (420)
 $ grit alias 420 textbooks
 $ grit link textbooks 81 184 349
 $ grit ls textbooks
-[x] Higher Algebra - Hall, Henry S. (81)
+[x] Higher Algebra - Henry S. Hall (81)
 [~] Calculus - Spivak, Michael (184)
 [ ] Linear Algebra - Hefferon, Jim (349)
 ```
@@ -362,7 +362,7 @@ Note that the same node can be pointed to by an infinite number of nodes, allowi
 A challenge can be a good motivational tool:
 
 ```
-$ grit add -r "Read 24 books in 2020"
+$ grit add -r Read 24 books in 2020
 (76)
 $ grit alias 76 rc2020
 ```
@@ -386,7 +386,7 @@ $ grit tree rc2020
 Now, whenever we decide what book we want to read next, we can simply create a new task and link the pointer to it:
 
 ```
-$ grit add "1984 - Orwell, George"
+$ grit add 1984 - Orwell, George
 (1) -> (101)
 $ grit link 77 101
 $ grit check 101
