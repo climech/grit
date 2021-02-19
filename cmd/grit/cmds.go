@@ -259,10 +259,11 @@ func cmdListDates(cmd *cli.Cmd) {
 }
 
 func cmdRename(cmd *cli.Cmd) {
-	cmd.Spec = "NODE NAME"
+	cmd.Spec = "NODE NAME_PARTS..."
 	var (
-		selector = cmd.StringArg("NODE", "", "node selector")
-		name     = cmd.StringArg("NAME", "", "new name for NODE")
+		selector  = cmd.StringArg("NODE", "", "node selector")
+		nameParts = cmd.StringsArg("NAME_PARTS", nil,
+			"strings forming the new node name")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -270,7 +271,8 @@ func cmdRename(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
-		if err := a.RenameNode(*selector, *name); err != nil {
+		name := strings.Join(*nameParts, " ")
+		if err := a.RenameNode(*selector, name); err != nil {
 			dief("Couldn't rename node: %v", err)
 		}
 	}
