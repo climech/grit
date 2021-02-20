@@ -430,6 +430,7 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 		if err := deleteNode(tx, id); err != nil {
 			return err
 		}
+		deleted = append(deleted, node)
 
 		// Successors.
 		for _, n := range node.NodesAfter() {
