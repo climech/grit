@@ -1,9 +1,9 @@
 package db
 
 import (
-	"testing"
-	"os"
 	"io/ioutil"
+	"os"
+	"testing"
 )
 
 func setupDB(t *testing.T) *Database {
@@ -40,7 +40,7 @@ func TestLinkToDateNode(t *testing.T) {
 
 	succId, err := d.CreateSuccessorOfDateNode("2020-01-01", "test successor")
 	if err != nil {
-		t.Fatalf("couldn't create root: %v", err)
+		t.Fatalf("couldn't create date node successor: %v", err)
 	}
 	if succId != 3 {
 		t.Fatalf("got successor ID = %d, want 3", succId)
@@ -49,5 +49,53 @@ func TestLinkToDateNode(t *testing.T) {
 	// ID 2 should be our date node.
 	if _, err := d.CreateEdge(1, 2); err == nil {
 		t.Fatalf("created edge with date node as dest; err = nil, want non-nil")
+	}
+}
+
+func TestAutodeleteDateNode(t *testing.T) {
+	d := setupDB(t)
+	defer tearDB(t, d)
+
+	datestr := "2020-01-01"
+
+	// Delete last successor.
+	{
+		succID, err := d.CreateSuccessorOfDateNode(datestr, "test")
+		if err != nil {
+			t.Fatalf("couldn't create date node successor: %v", err)
+		}
+		dateNode, err := d.GetNodeByName(datestr)
+		if err != nil {
+			t.Fatalf(`couldn't get node by name "%s": %v`, datestr, err)
+		}
+		if _, err := d.DeleteNode(succID); err != nil {
+			t.Fatalf(`couldn't delete successor (%d): %v`, succID, err)
+		}
+		if n, err := d.GetNode(dateNode.ID); err != nil {
+			t.Fatalf(`error getting node (%d): %v`, dateNode.ID, err)
+		} else if n != nil {
+			t.Error("date node still exists after deleting its only successor")
+		}
+	}
+
+	// Unlink last successor.
+	{
+		succID, err := d.CreateSuccessorOfDateNode(datestr, "test")
+		if err != nil {
+			t.Fatalf("couldn't create date node successor: %v", err)
+		}
+		dateNode, err := d.GetNodeByName(datestr)
+		if err != nil {
+			t.Fatalf(`couldn't get node by name "%s": %v`, datestr, err)
+		}
+		if err := d.DeleteEdgeByEndpoints(dateNode.ID, succID); err != nil {
+			t.Fatalf(`couldn't delete edge (%d) -> (%d): %v`,
+				dateNode.ID, succID, err)
+		}
+		if n, err := d.GetNode(dateNode.ID); err != nil {
+			t.Fatalf(`error getting node (%d): %v`, dateNode.ID, err)
+		} else if n != nil {
+			t.Error("date node still exists after unlinking its only successor")
+		}
 	}
 }

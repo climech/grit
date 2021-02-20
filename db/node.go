@@ -15,6 +15,7 @@ func getNode(tx *sql.Tx, id int64) (*graph.Node, error) {
 	return rowToNode(row)
 }
 
+// GetNode returns the node with the given id, or nil if it doesn't exist.
 func (d *Database) GetNode(id int64) (*graph.Node, error) {
 	var node *graph.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
@@ -36,6 +37,7 @@ func getNodeByName(tx *sql.Tx, name string) (*graph.Node, error) {
 	return rowToNode(row)
 }
 
+// GetNode returns the node with the given name, or nil if it doesn't exist.
 func (d *Database) GetNodeByName(name string) (*graph.Node, error) {
 	var node *graph.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
@@ -57,6 +59,7 @@ func getNodeByAlias(tx *sql.Tx, alias string) (*graph.Node, error) {
 	return rowToNode(row)
 }
 
+// GetNode returns the node with the given alias, or nil if it doesn't exist.
 func (d *Database) GetNodeByAlias(alias string) (*graph.Node, error) {
 	var node *graph.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
@@ -73,6 +76,7 @@ func (d *Database) GetNodeByAlias(alias string) (*graph.Node, error) {
 	return node, nil
 }
 
+// GetRoots returns a slice of nodes that have no predecessors.
 func (d *Database) GetRoots() ([]*graph.Node, error) {
 	rows, err := d.DB.Query(
 		"SELECT * FROM nodes " +
@@ -365,7 +369,7 @@ func deleteNode(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-// DeleteNode deletes the node and propagates the change to the rest of the
+// DeleteNode deletes a single node and propagates the change to the rest of the
 // graph. It returns the node's orphaned successors.
 func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 	var orphans []*graph.Node
@@ -378,9 +382,22 @@ func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 		if node == nil {
 			return fmt.Errorf("node does not exist")
 		}
+
 		if err := deleteNode(tx, id); err != nil {
 			return err
 		}
+
+		// Auto-delete any empty date nodes.
+		for _, dn := range filterDateNodes(node.Predecessors) {
+			if len(dn.Successors) == 1 {
+				if err := deleteNode(tx, dn.ID); err != nil {
+					return err
+				}
+				// Remove from node too, so they're ignored in backprop.
+				node.RemovePredecessor(dn)
+			}
+		}
+
 		if err := backpropCompletion(tx, node); err != nil {
 			return err
 		}
@@ -394,9 +411,9 @@ func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 	return orphans, nil
 }
 
-// DeleteNodeRecursive deletes the entire tree rooted at node and updates the
-// graph. Nodes that have more than one predecessor are unlinked from the current
-// tree. Returns a slice of all deleted nodes.
+// DeleteNodeRecursive deletes the tree rooted at the given node and updates
+// the graph. Nodes that have predecessors outside of this tree are preserved.
+// It returns a slice of all deleted nodes.
 func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 	var deleted []*graph.Node
 
@@ -415,22 +432,12 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 		}
 
 		// Successors.
-		tree := node.Tree()
 		for _, n := range node.NodesAfter() {
 			if len(n.Predecessors) == 1 {
 				if err := deleteNode(tx, n.ID); err != nil {
 					return err
 				}
 				deleted = append(deleted, n)
-			} else {
-				for _, p := range n.Predecessors {
-					if tree.Get(p.ID) == nil {
-						continue // only if p belongs to the same tree
-					}
-					if err := deleteEdgeByEndpoints(tx, p.ID, n.ID); err != nil {
-						return err
-					}
-				}
 			}
 		}
 

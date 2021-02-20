@@ -73,3 +73,13 @@ func rowsToEdges(rows *sql.Rows) []*graph.Edge {
 	}
 	return edges
 }
+
+func filterDateNodes(nodes []*graph.Node) []*graph.Node {
+	var filtered []*graph.Node
+	for _, n := range nodes {
+		if n.IsDateNode() {
+			filtered = append(filtered, n)
+		}
+	}
+	return filtered
+}

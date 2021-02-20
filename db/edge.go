@@ -118,29 +118,36 @@ func (d *Database) CreateEdgeFromDateNode(date string, destID int64) (int64, err
 }
 
 func deleteEdgeByEndpoints(tx *sql.Tx, originID, destID int64) error {
-	r, err := tx.Exec(
-		"DELETE FROM edges WHERE origin_id = ? AND dest_id = ?",
-		originID,
-		destID,
-	)
+	r, err := tx.Exec("DELETE FROM edges WHERE origin_id = ? AND dest_id = ?",
+		originID, destID)
 	if err != nil {
 		return err
 	}
 	if count, _ := r.RowsAffected(); count == 0 {
 		return fmt.Errorf("edge (%d) -> (%d) does not exist", originID, destID)
 	}
-	node, err := getGraph(tx, originID)
-	if err != nil {
-		return err
-	}
-	if err := backpropCompletion(tx, node); err != nil {
-		return err
-	}
 	return nil
 }
 
 func (d *Database) DeleteEdgeByEndpoints(originID, destID int64) error {
 	return d.execTxFunc(func(tx *sql.Tx) error {
-		return deleteEdgeByEndpoints(tx, originID, destID)
+		if err := deleteEdgeByEndpoints(tx, originID, destID); err != nil {
+			return err
+		}
+
+		origin, err := getGraph(tx, originID)
+		if err != nil {
+			return err
+		}
+
+		if origin.IsDateNode() && len(origin.Successors) == 0 {
+			deleteNode(tx, originID)
+		} else {
+			if err := backpropCompletion(tx, origin); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
