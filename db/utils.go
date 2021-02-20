@@ -23,7 +23,7 @@ func scanToNode(s scannable) (*graph.Node, error) {
 	node := &graph.Node{}
 	var alias sql.NullString
 	var completed sql.NullInt64
-	err := s.Scan(&node.Id, &node.Name, &alias, &node.Created, &completed)
+	err := s.Scan(&node.ID, &node.Name, &alias, &node.Created, &completed)
 	if err == nil {
 		node.Alias = alias.String
 		if completed.Valid {
@@ -56,7 +56,7 @@ func rowsToNodes(rows *sql.Rows) []*graph.Node {
 
 func rowToEdge(row *sql.Row) (*graph.Edge, error) {
 	edge := &graph.Edge{}
-	err := row.Scan(&edge.Id, &edge.OriginId, &edge.DestId)
+	err := row.Scan(&edge.ID, &edge.OriginID, &edge.DestID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -68,7 +68,7 @@ func rowsToEdges(rows *sql.Rows) []*graph.Edge {
 	var edges []*graph.Edge
 	for rows.Next() {
 		edge := &graph.Edge{}
-		rows.Scan(&edge.Id, &edge.OriginId, &edge.DestId)
+		rows.Scan(&edge.ID, &edge.OriginID, &edge.DestID)
 		edges = append(edges, edge)
 	}
 	return edges

@@ -42,7 +42,7 @@ func cmdAdd(cmd *cli.Cmd) {
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
-			color.Cyan("(%d)", node.Id)
+			color.Cyan("(%d)", node.ID)
 		} else {
 			node, err := a.AddSuccessor(name, *predecessor)
 			if err != nil {
@@ -52,8 +52,8 @@ func cmdAdd(cmd *cli.Cmd) {
 			if node.Predecessors[0].Name == today {
 				accent = color.New(color.FgYellow).SprintFunc()
 			}
-			highlighted := accent(fmt.Sprintf("(%d)", node.Id))
-			fmt.Printf("(%d) -> %s\n", node.Predecessors[0].Id, highlighted)
+			highlighted := accent(fmt.Sprintf("(%d)", node.ID))
+			fmt.Printf("(%d) -> %s\n", node.Predecessors[0].ID, highlighted)
 		}
 	}
 }
@@ -102,7 +102,7 @@ func cmdList(cmd *cli.Cmd) {
 			}
 			for _, r := range roots {
 				// Get as part of graph for accurate status.
-				n, err := a.GetGraph(r.Id)
+				n, err := a.GetGraph(r.ID)
 				if err != nil {
 					die(err)
 				}
@@ -220,7 +220,7 @@ func cmdListRoots(cmd *cli.Cmd) {
 		}
 		for _, r := range roots {
 			// Get the nodes as members of their graphs to get accurate status.
-			n, err := a.GetGraph(r.Id)
+			n, err := a.GetGraph(r.ID)
 			if err != nil {
 				die(err)
 			}
@@ -246,7 +246,7 @@ func cmdListDates(cmd *cli.Cmd) {
 		}
 		for _, d := range dnodes {
 			// Get the nodes as members of their graphs to get accurate status.
-			n, err := a.GetGraph(d.Id)
+			n, err := a.GetGraph(d.ID)
 			if err != nil {
 				die(err)
 			}
@@ -488,7 +488,7 @@ func cmdStat(cmd *cli.Cmd) {
 			name = bold(name)
 		}
 
-		fmt.Printf("ID: %d\n", node.Id)
+		fmt.Printf("ID: %d\n", node.ID)
 		fmt.Printf("Name: %s\n", name)
 		fmt.Printf("Status: %s\n", status)
 		fmt.Printf("Predecessors: %d\n", len(node.Predecessors))

@@ -149,7 +149,7 @@ func (a *App) RenameNode(selector interface{}, name string) error {
 		return NewError(ErrForbidden, "date nodes cannot be renamed")
 	}
 
-	if err := a.Database.RenameNode(node.Id, name); err != nil {
+	if err := a.Database.RenameNode(node.ID, name); err != nil {
 		return err
 	}
 	return nil
@@ -364,7 +364,7 @@ func (a *App) stringSelectorToId(selector string) (int64, error) {
 		if node == nil {
 			return 0, nil // not found
 		}
-		return node.Id, nil
+		return node.ID, nil
 	}
 	// Check if alias.
 	if graph.ValidateNodeAlias(selector) == nil {
@@ -375,7 +375,7 @@ func (a *App) stringSelectorToId(selector string) (int64, error) {
 		if node == nil {
 			return 0, nil // not found
 		}
-		return node.Id, nil
+		return node.ID, nil
 	}
 	return 0, fmt.Errorf("invalid selector")
 }
@@ -385,7 +385,7 @@ func (a *App) stringSelectorToId(selector string) (int64, error) {
 func (a *App) selectorToId(selector interface{}) (int64, error) {
 	switch value := selector.(type) {
 	case *graph.Node:
-		return value.Id, nil
+		return value.ID, nil
 	case string:
 		return a.stringSelectorToId(value)
 	case int64:

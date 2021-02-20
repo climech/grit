@@ -44,7 +44,7 @@ const (
 )
 
 type Node struct {
-	Id   int64
+	ID   int64
 	Name string
 
 	// Alias is an optional secondary identifier of the node.
@@ -105,24 +105,24 @@ func (n *Node) Copy() *Node {
 
 	// Copy the nodes, ignore the edges.
 	for _, src := range nodes {
-		newNodes[src.Id] = &Node{Id: src.Id, Name: src.Name, Completed: src.Completed}
+		newNodes[src.ID] = &Node{ID: src.ID, Name: src.Name, Completed: src.Completed}
 	}
 
 	// Connect the nodes.
 	for _, src := range nodes {
 		predecessors := make([]*Node, len(src.Predecessors))
 		for i, pre := range src.Predecessors {
-			predecessors[i] = newNodes[pre.Id]
+			predecessors[i] = newNodes[pre.ID]
 		}
 		successors := make([]*Node, len(src.Successors))
 		for i, succ := range src.Successors {
-			successors[i] = newNodes[succ.Id]
+			successors[i] = newNodes[succ.ID]
 		}
-		newNodes[src.Id].Predecessors = predecessors
-		newNodes[src.Id].Successors = successors
+		newNodes[src.ID].Predecessors = predecessors
+		newNodes[src.ID].Successors = successors
 	}
 
-	return newNodes[n.Id]
+	return newNodes[n.ID]
 }
 
 // HasForwardEdge returns true if at least one forward edge is found in the
@@ -243,9 +243,9 @@ func (n *Node) String() string {
 
 	var id string
 	if n.Alias == "" {
-		id = fmt.Sprintf("(%d)", n.Id)
+		id = fmt.Sprintf("(%d)", n.ID)
 	} else {
-		id = fmt.Sprintf("(%d:%s)", n.Id, n.Alias)
+		id = fmt.Sprintf("(%d:%s)", n.ID, n.Alias)
 	}
 	name := n.Name
 	accent := color.New(color.FgCyan).SprintFunc()
@@ -339,10 +339,10 @@ func (n *Node) EdgeString() string {
 	predecessors := make([]string, len(n.Predecessors))
 	successors := make([]string, len(n.Successors))
 	for i, p := range n.Predecessors {
-		predecessors[i] = fmt.Sprintf("(%d)", p.Id)
+		predecessors[i] = fmt.Sprintf("(%d)", p.ID)
 	}
 	for i, s := range n.Successors {
-		successors[i] = fmt.Sprintf("(%d)", s.Id)
+		successors[i] = fmt.Sprintf("(%d)", s.ID)
 	}
 
 	padleft := func(text string, n int) string {
@@ -379,7 +379,7 @@ func (n *Node) EdgeString() string {
 		}
 	}
 
-	id := fmt.Sprintf("(%d)", n.Id)
+	id := fmt.Sprintf("(%d)", n.ID)
 	left += len(id)
 	accent := color.New(color.FgCyan).SprintFunc()
 	output += accent(id)
@@ -406,7 +406,7 @@ func (n *Node) EdgeString() string {
 
 func (n *Node) HasSuccessor(node *Node) bool {
 	for _, s := range n.Successors {
-		if node.Id != 0 && s.Id == node.Id {
+		if node.ID != 0 && s.ID == node.ID {
 			return true
 		}
 	}
@@ -415,7 +415,7 @@ func (n *Node) HasSuccessor(node *Node) bool {
 
 func (n *Node) HasPredecessor(node *Node) bool {
 	for _, p := range n.Predecessors {
-		if node.Id != 0 && p.Id == node.Id {
+		if node.ID != 0 && p.ID == node.ID {
 			return true
 		}
 	}
@@ -443,7 +443,7 @@ func (n *Node) AddPredecessor(node *Node) error {
 func (n *Node) RemoveSuccessor(successor *Node) error {
 	index := -1
 	for i, succ := range n.Successors {
-		if succ.Id == successor.Id {
+		if succ.ID == successor.ID {
 			index = i
 			break
 		}
@@ -458,7 +458,7 @@ func (n *Node) RemoveSuccessor(successor *Node) error {
 func (n *Node) RemovePredecessor(predecessor *Node) error {
 	index := -1
 	for i, pre := range n.Predecessors {
-		if pre.Id == predecessor.Id {
+		if pre.ID == predecessor.ID {
 			index = i
 			break
 		}
@@ -479,7 +479,7 @@ func (n *Node) Each(f func(*Node)) {
 
 	// Use breadth-first search to traverse the graph; ignore direction.
 	visited := make(map[int64]*Node)
-	visited[n.Id] = n
+	visited[n.ID] = n
 	queue := list.New()
 	queue.PushBack(n)
 	for {
@@ -491,8 +491,8 @@ func (n *Node) Each(f func(*Node)) {
 			f(current)
 			adjacent := append(current.Predecessors, current.Successors...)
 			for _, adj := range adjacent {
-				if _, ok := visited[adj.Id]; !ok {
-					visited[adj.Id] = adj
+				if _, ok := visited[adj.ID]; !ok {
+					visited[adj.ID] = adj
 					queue.PushBack(adj)
 				}
 			}
@@ -523,13 +523,13 @@ func (n *Node) GetAll() []*Node {
 // Get returns the node reachable from n which matches the given ID, or nil if
 // the node cannot be found.
 func (n *Node) Get(id int64) *Node {
-	if n.Id == id {
+	if n.ID == id {
 		return n
 	}
 
 	// Use breadth-first search to traverse the graph; ignore direction.
 	visited := make(map[int64]*Node)
-	visited[n.Id] = n
+	visited[n.ID] = n
 	queue := list.New()
 	queue.PushBack(n)
 	for {
@@ -538,13 +538,13 @@ func (n *Node) Get(id int64) *Node {
 		} else {
 			queue.Remove(elem)
 			current := elem.Value.(*Node)
-			if current.Id == id {
+			if current.ID == id {
 				return current
 			}
 			adjacent := append(current.Predecessors, current.Successors...)
 			for _, adj := range adjacent {
-				if _, ok := visited[adj.Id]; !ok {
-					visited[adj.Id] = adj
+				if _, ok := visited[adj.ID]; !ok {
+					visited[adj.ID] = adj
 					queue.PushBack(adj)
 				}
 			}
@@ -563,7 +563,7 @@ func (n *Node) GetByName(name string) *Node {
 
 	// Use breadth-first search to traverse the graph; ignore direction.
 	visited := make(map[int64]*Node)
-	visited[n.Id] = n
+	visited[n.ID] = n
 	queue := list.New()
 	queue.PushBack(n)
 	for {
@@ -577,8 +577,8 @@ func (n *Node) GetByName(name string) *Node {
 			}
 			adjacent := append(current.Predecessors, current.Successors...)
 			for _, adj := range adjacent {
-				if _, ok := visited[adj.Id]; !ok {
-					visited[adj.Id] = adj
+				if _, ok := visited[adj.ID]; !ok {
+					visited[adj.ID] = adj
 					queue.PushBack(adj)
 				}
 			}
@@ -596,13 +596,13 @@ func (n *Node) EachAfter(f func(*Node, int)) {
 	visited := make(map[int64]bool)
 	var traverse func(*Node, int)
 	traverse = func(current *Node, distance int) {
-		if _, ok := visited[current.Id]; ok {
+		if _, ok := visited[current.ID]; ok {
 			return
 		}
 		if current != n {
 			f(current, distance)
 		}
-		visited[current.Id] = true
+		visited[current.ID] = true
 
 		for _, succ := range current.Successors {
 			traverse(succ, distance+1)
@@ -629,13 +629,13 @@ func (n *Node) EachBefore(f func(*Node, int)) {
 	visited := make(map[int64]bool)
 	var traverse func(*Node, int)
 	traverse = func(current *Node, distance int) {
-		if _, ok := visited[current.Id]; ok {
+		if _, ok := visited[current.ID]; ok {
 			return
 		}
 		if current != n {
 			f(current, distance)
 		}
-		visited[current.Id] = true
+		visited[current.ID] = true
 
 		for _, pre := range current.Predecessors {
 			traverse(pre, distance-1)

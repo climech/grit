@@ -125,7 +125,7 @@ func backpropCompletion(tx *sql.Tx, node *graph.Node) error {
 
 	for _, node := range updateQueue {
 		_, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?",
-			node.Completed, node.Id)
+			node.Completed, node.ID)
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func createDateNodeIfNotExists(tx *sql.Tx, date string) (int64, error) {
 		return 0, err
 	}
 	if node != nil {
-		return node.Id, nil
+		return node.ID, nil
 	}
 	return createNode(tx, date, 0)
 }
@@ -216,7 +216,7 @@ func createTree(tx *sql.Tx, node *graph.Node, predecessorId int64) (int64, error
 	if err != nil {
 		return 0, err
 	} else {
-		tree.Id = rootId
+		tree.ID = rootId
 	}
 
 	// Traverse non-recursively so we can return immediately in case of error.
@@ -226,10 +226,10 @@ func createTree(tx *sql.Tx, node *graph.Node, predecessorId int64) (int64, error
 		if len(current.Successors) > 0 {
 			var child *graph.Node
 			child, current.Successors = current.Successors[0], current.Successors[1:] // shift
-			if id, err := createNode(tx, child.Name, current.Id); err != nil {
+			if id, err := createNode(tx, child.Name, current.ID); err != nil {
 				return 0, err
 			} else {
-				child.Id = id
+				child.ID = id
 			}
 			if len(child.Successors) > 0 {
 				stack = append(stack, child) // push
@@ -294,7 +294,7 @@ func (d *Database) checkNode(nodeId int64, check bool) error {
 	}
 
 	update := func(tx *sql.Tx, node *graph.Node) error {
-		r, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?", value, node.Id)
+		r, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?", value, node.ID)
 		if err != nil {
 			return err
 		}
@@ -418,16 +418,16 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 		tree := node.Tree()
 		for _, n := range node.NodesAfter() {
 			if len(n.Predecessors) == 1 {
-				if err := deleteNode(tx, n.Id); err != nil {
+				if err := deleteNode(tx, n.ID); err != nil {
 					return err
 				}
 				deleted = append(deleted, n)
 			} else {
 				for _, p := range n.Predecessors {
-					if tree.Get(p.Id) == nil {
+					if tree.Get(p.ID) == nil {
 						continue // only if p belongs to the same tree
 					}
-					if err := deleteEdgeByEndpoints(tx, p.Id, n.Id); err != nil {
+					if err := deleteEdgeByEndpoints(tx, p.ID, n.ID); err != nil {
 						return err
 					}
 				}

@@ -17,7 +17,7 @@ func newCyclicGraph() *Node {
 	nodesById := make(map[int64]*Node)
 	for i := int64(1); i <= 5; i++ {
 		nodesById[i] = &Node{
-			Id: i,
+			ID: i,
 			Name: fmt.Sprintf("node %d", i),
 		}
 	}

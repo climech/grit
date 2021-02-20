@@ -65,7 +65,7 @@ func getGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 	queue := list.New()
 	queue.PushBack(node)
 	visited := make(map[int64]*graph.Node)
-	visited[node.Id] = node
+	visited[node.ID] = node
 	for {
 		if elem := queue.Front(); elem == nil {
 			break
@@ -73,31 +73,31 @@ func getGraph(tx *sql.Tx, nodeId int64) (*graph.Node, error) {
 			queue.Remove(elem)
 			current := elem.Value.(*graph.Node)
 
-			predecessors, err := getPredecessors(tx, current.Id)
+			predecessors, err := getPredecessors(tx, current.ID)
 			if err != nil {
 				return nil, err
 			}
 			for _, p := range predecessors {
-				if _, ok := visited[p.Id]; !ok {
+				if _, ok := visited[p.ID]; !ok {
 					current.AddPredecessor(p)
-					visited[p.Id] = p
+					visited[p.ID] = p
 					queue.PushBack(p)
 				} else {
-					current.AddPredecessor(visited[p.Id])
+					current.AddPredecessor(visited[p.ID])
 				}
 			}
 
-			successors, err := getSuccessors(tx, current.Id)
+			successors, err := getSuccessors(tx, current.ID)
 			if err != nil {
 				return nil, err
 			}
 			for _, s := range successors {
-				if _, ok := visited[s.Id]; !ok {
+				if _, ok := visited[s.ID]; !ok {
 					current.AddSuccessor(s)
-					visited[s.Id] = s
+					visited[s.ID] = s
 					queue.PushBack(s)
 				} else {
-					current.AddSuccessor(visited[s.Id])
+					current.AddSuccessor(visited[s.ID])
 				}
 			}
 		}
