@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/climech/grit/graph"
+	"github.com/climech/grit/multitree"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func getNode(tx *sql.Tx, id int64) (*graph.Node, error) {
+func getNode(tx *sql.Tx, id int64) (*multitree.Node, error) {
 	row := tx.QueryRow("SELECT * FROM nodes WHERE node_id = ?", id)
 	return rowToNode(row)
 }
 
 // GetNode returns the node with the given id, or nil if it doesn't exist.
-func (d *Database) GetNode(id int64) (*graph.Node, error) {
-	var node *graph.Node
+func (d *Database) GetNode(id int64) (*multitree.Node, error) {
+	var node *multitree.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
 		n, err := getNode(tx, id)
 		if err != nil {
@@ -32,14 +32,14 @@ func (d *Database) GetNode(id int64) (*graph.Node, error) {
 	return node, nil
 }
 
-func getNodeByName(tx *sql.Tx, name string) (*graph.Node, error) {
+func getNodeByName(tx *sql.Tx, name string) (*multitree.Node, error) {
 	row := tx.QueryRow("SELECT * FROM nodes WHERE node_name = ?", name)
 	return rowToNode(row)
 }
 
 // GetNode returns the node with the given name, or nil if it doesn't exist.
-func (d *Database) GetNodeByName(name string) (*graph.Node, error) {
-	var node *graph.Node
+func (d *Database) GetNodeByName(name string) (*multitree.Node, error) {
+	var node *multitree.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
 		n, err := getNodeByName(tx, name)
 		if err != nil {
@@ -54,14 +54,14 @@ func (d *Database) GetNodeByName(name string) (*graph.Node, error) {
 	return node, nil
 }
 
-func getNodeByAlias(tx *sql.Tx, alias string) (*graph.Node, error) {
+func getNodeByAlias(tx *sql.Tx, alias string) (*multitree.Node, error) {
 	row := tx.QueryRow("SELECT * FROM nodes WHERE node_alias = ?", alias)
 	return rowToNode(row)
 }
 
 // GetNode returns the node with the given alias, or nil if it doesn't exist.
-func (d *Database) GetNodeByAlias(alias string) (*graph.Node, error) {
-	var node *graph.Node
+func (d *Database) GetNodeByAlias(alias string) (*multitree.Node, error) {
+	var node *multitree.Node
 	err := d.execTxFunc(func(tx *sql.Tx) error {
 		n, err := getNodeByAlias(tx, alias)
 		if err != nil {
@@ -77,10 +77,10 @@ func (d *Database) GetNodeByAlias(alias string) (*graph.Node, error) {
 }
 
 // GetRoots returns a slice of nodes that have no predecessors.
-func (d *Database) GetRoots() ([]*graph.Node, error) {
+func (d *Database) GetRoots() ([]*multitree.Node, error) {
 	rows, err := d.DB.Query(
 		"SELECT * FROM nodes " +
-			"WHERE NOT EXISTS(SELECT * FROM edges WHERE dest_id = node_id)",
+			"WHERE NOT EXISTS(SELECT * FROM links WHERE dest_id = node_id)",
 	)
 	if err != nil {
 		return nil, err
@@ -88,42 +88,34 @@ func (d *Database) GetRoots() ([]*graph.Node, error) {
 	return rowsToNodes(rows), nil
 }
 
-func isDateNode(tx *sql.Tx, id int64) (bool, error) {
-	node, err := getNode(tx, id)
-	if err != nil {
-		return false, err
-	}
-	return (graph.ValidateDateNodeName(node.Name) == nil), nil
-}
+func backpropCompletion(tx *sql.Tx, node *multitree.Node) error {
+	var updateQueue []*multitree.Node
+	var backprop func(*multitree.Node)
 
-func backpropCompletion(tx *sql.Tx, node *graph.Node) error {
-	var updateQueue []*graph.Node
-	var backprop func(*graph.Node)
-
-	backprop = func(n *graph.Node) {
-		allSuccessorsCompleted := true
-		for _, succ := range n.Successors {
-			if !succ.IsCompleted() {
-				allSuccessorsCompleted = false
+	backprop = func(n *multitree.Node) {
+		allChildrenCompleted := true
+		for _, c := range n.Children() {
+			if !c.IsCompleted() {
+				allChildrenCompleted = false
 				break
 			}
 		}
-		if n.IsCompleted() != allSuccessorsCompleted {
-			if allSuccessorsCompleted {
-				n.Completed = copyCompletion(n.Successors[0].Completed)
+		if n.IsCompleted() != allChildrenCompleted {
+			if allChildrenCompleted {
+				n.Completed = copyCompletion(n.Children()[0].Completed)
 			} else {
 				n.Completed = nil
 			}
 			updateQueue = append(updateQueue, n)
 		}
-		for _, pre := range n.Predecessors {
-			backprop(pre)
+		for _, p := range n.Parents() {
+			backprop(p)
 		}
 	}
 
 	for _, leaf := range node.Leaves() {
-		for _, pre := range leaf.Predecessors {
-			backprop(pre)
+		for _, p := range leaf.Parents() {
+			backprop(p)
 		}
 	}
 
@@ -138,14 +130,14 @@ func backpropCompletion(tx *sql.Tx, node *graph.Node) error {
 	return nil
 }
 
-func createNode(tx *sql.Tx, name string, predecessorId int64) (int64, error) {
+func createNode(tx *sql.Tx, name string, parentID int64) (int64, error) {
 	r, err := tx.Exec(`INSERT INTO nodes (node_name) VALUES (?)`, name)
 	if err != nil {
 		return 0, err
 	}
 	id, _ := r.LastInsertId()
-	if predecessorId != 0 {
-		if _, err := createEdge(tx, predecessorId, id); err != nil {
+	if parentID != 0 {
+		if _, err := createLink(tx, parentID, id); err != nil {
 			return 0, err
 		}
 		node, err := getGraph(tx, id)
@@ -159,26 +151,26 @@ func createNode(tx *sql.Tx, name string, predecessorId int64) (int64, error) {
 	return id, nil
 }
 
-// CreateSuccessor creates a node and returns its ID. It updates the status of
-// other nodes in the graph if needed.
-func (d *Database) CreateNode(name string, predecessorId int64) (int64, error) {
-	var succId int64
+// CreateNode creates a node and returns its ID. It updates the status of
+// other nodes in the multitree if needed.
+func (d *Database) CreateNode(name string, parentID int64) (int64, error) {
+	var childID int64
 	txf := func(tx *sql.Tx) error {
-		id, err := createNode(tx, name, predecessorId)
+		id, err := createNode(tx, name, parentID)
 		if err != nil {
 			return err
 		}
-		succId = id
+		childID = id
 		return nil
 	}
 	if err := d.execTxFunc(txf); err != nil {
 		return 0, err
 	}
-	return succId, nil
+	return childID, nil
 }
 
 func createDateNodeIfNotExists(tx *sql.Tx, date string) (int64, error) {
-	if err := graph.ValidateDateNodeName(date); err != nil {
+	if err := multitree.ValidateDateNodeName(date); err != nil {
 		panic(err)
 	}
 	node, err := getNodeByName(tx, date)
@@ -191,17 +183,17 @@ func createDateNodeIfNotExists(tx *sql.Tx, date string) (int64, error) {
 	return createNode(tx, date, 0)
 }
 
-// CreateSuccessorOfDateNode atomically creates a node and makes it a successor
-// of a date node. Date node is created if it doesn't exist.
-func (d *Database) CreateSuccessorOfDateNode(date, name string) (int64, error) {
-	var succId int64
+// CreateChildOfDateNode atomically creates a node and links the date node to
+// it. Date node is created if it doesn't exist.
+func (d *Database) CreateChildOfDateNode(date, name string) (int64, error) {
+	var childID int64
 
 	txf := func(tx *sql.Tx) error {
-		dateNodeId, err := createDateNodeIfNotExists(tx, date)
+		dateNodeID, err := createDateNodeIfNotExists(tx, date)
 		if err != nil {
 			return err
 		}
-		succId, err = createNode(tx, name, dateNodeId)
+		childID, err = createNode(tx, name, dateNodeID)
 		if err != nil {
 			return err
 		}
@@ -211,94 +203,88 @@ func (d *Database) CreateSuccessorOfDateNode(date, name string) (int64, error) {
 	if err := d.execTxFunc(txf); err != nil {
 		return 0, err
 	}
-	return succId, nil
+	return childID, nil
 }
 
-func createTree(tx *sql.Tx, node *graph.Node, predecessorId int64) (int64, error) {
-	tree := node.Tree() // Copy
-	rootId, err := createNode(tx, tree.Name, predecessorId)
-	if err != nil {
-		return 0, err
-	} else {
-		tree.ID = rootId
-	}
+func createTree(tx *sql.Tx, node *multitree.Node, parentID int64) (int64, error) {
+	tree := node.Tree()
+	var retErr error
 
-	// Traverse non-recursively so we can return immediately in case of error.
-	stack := []*graph.Node{tree}
-	for len(stack) > 0 {
-		current := stack[len(stack)-1]
-		if len(current.Successors) > 0 {
-			var child *graph.Node
-			child, current.Successors = current.Successors[0], current.Successors[1:] // shift
-			if id, err := createNode(tx, child.Name, current.ID); err != nil {
-				return 0, err
-			} else {
-				child.ID = id
-			}
-			if len(child.Successors) > 0 {
-				stack = append(stack, child) // push
-			}
-		} else {
-			stack = stack[:len(stack)-1] // pop
+	tree.TraverseDescendants(func(current *multitree.Node, stop func()) {
+		var pid int64
+		parents := current.Parents()
+		if len(parents) > 0 {
+			pid = parents[0].ID
 		}
-	}
+		id, err := createNode(tx, current.Name, pid)
+		if err != nil {
+			retErr = err
+			stop()
+		} else {
+			current.ID = id
+		}
+	})
 
-	return rootId, nil
+	if retErr != nil {
+		return 0, retErr
+	}
+	return tree.ID, nil
 }
 
 // CreateTree saves an entire tree in the database and returns the root ID. It
-// updates the status of other nodes in the graph to reflect the change.
-func (d *Database) CreateTree(node *graph.Node, predecessorId int64) (int64, error) {
-	var rootId int64
+// updates the status of other nodes in the multitree to reflect the change.
+func (d *Database) CreateTree(node *multitree.Node, parentID int64) (int64, error) {
+	var rootID int64
 
 	txf := func(tx *sql.Tx) error {
-		id, err := createTree(tx, node, predecessorId)
+		id, err := createTree(tx, node, parentID)
 		if err != nil {
 			return err
 		}
-		rootId = id
+		rootID = id
 		return nil
 	}
 
 	if err := d.execTxFunc(txf); err != nil {
 		return 0, err
 	}
-	return rootId, nil
+	return rootID, nil
 }
 
-// CreateTreeAsSuccessorOfDateNode atomically creates a tree as a successor of
-// date node. Date node is created if it doesn't exist.
-func (d *Database) CreateTreeAsSuccessorOfDateNode(date string, node *graph.Node) (int64, error) {
-	var rootId int64
+// CreateTreeAsChildOfDateNode atomically creates a tree and links the date node
+// to its root. Date node is created if it doesn't exist.
+func (d *Database) CreateTreeAsChildOfDateNode(date string, node *multitree.Node) (int64, error) {
+	var rootID int64
 
 	txf := func(tx *sql.Tx) error {
-		dateNodeId, err := createDateNodeIfNotExists(tx, date)
+		dateNodeID, err := createDateNodeIfNotExists(tx, date)
 		if err != nil {
 			return err
 		}
-		id, err := createTree(tx, node, dateNodeId)
+		id, err := createTree(tx, node, dateNodeID)
 		if err != nil {
 			return err
 		}
-		rootId = id
+		rootID = id
 		return nil
 	}
 
 	if err := d.execTxFunc(txf); err != nil {
 		return 0, err
 	}
-	return rootId, nil
+	return rootID, nil
 }
 
-func (d *Database) checkNode(nodeId int64, check bool) error {
+func (d *Database) checkNode(nodeID int64, check bool) error {
 	var value *int64
 	if check {
 		now := time.Now().Unix()
 		value = &now
 	}
 
-	update := func(tx *sql.Tx, node *graph.Node) error {
-		r, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?", value, node.ID)
+	update := func(tx *sql.Tx, node *multitree.Node) error {
+		r, err := tx.Exec("UPDATE nodes SET node_completed = ? WHERE node_id = ?",
+			value, node.ID)
 		if err != nil {
 			return err
 		}
@@ -310,7 +296,7 @@ func (d *Database) checkNode(nodeId int64, check bool) error {
 	}
 
 	return d.execTxFunc(func(tx *sql.Tx) error {
-		node, err := getGraph(tx, nodeId)
+		node, err := getGraph(tx, nodeID)
 		if err != nil {
 			return err
 		}
@@ -322,7 +308,7 @@ func (d *Database) checkNode(nodeId int64, check bool) error {
 			return err
 		}
 		// Update direct and indirect successors.
-		for _, n := range node.NodesAfter() {
+		for _, n := range node.Descendants() {
 			if err := update(tx, n); err != nil {
 				return err
 			}
@@ -335,20 +321,21 @@ func (d *Database) checkNode(nodeId int64, check bool) error {
 }
 
 // CheckNode marks the node as completed, along with all its direct and indirect
-// successors. The rest of the graph is updated to reflect the change.
-func (d *Database) CheckNode(nodeId int64) error {
-	return d.checkNode(nodeId, true)
+// successors. The rest of the multitree is updated to reflect the change.
+func (d *Database) CheckNode(nodeID int64) error {
+	return d.checkNode(nodeID, true)
 }
 
 // UncheckNode sets the node's status to inactive, along with all its direct
-// and indirect successors. The rest of the graph is updated to reflect the
+// and indirect successors. The rest of the multitree is updated to reflect the
 // change.
-func (d *Database) UncheckNode(nodeId int64) error {
-	return d.checkNode(nodeId, false)
+func (d *Database) UncheckNode(nodeID int64) error {
+	return d.checkNode(nodeID, false)
 }
 
-func (d *Database) RenameNode(nodeId int64, name string) error {
-	r, err := d.DB.Exec("UPDATE nodes SET node_name = ? WHERE node_id = ?", name, nodeId)
+func (d *Database) RenameNode(nodeID int64, name string) error {
+	r, err := d.DB.Exec("UPDATE nodes SET node_name = ? WHERE node_id = ?",
+		name, nodeID)
 	if err != nil {
 		return err
 	}
@@ -370,9 +357,9 @@ func deleteNode(tx *sql.Tx, id int64) error {
 }
 
 // DeleteNode deletes a single node and propagates the change to the rest of the
-// graph. It returns the node's orphaned successors.
-func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
-	var orphans []*graph.Node
+// multitree. It returns the node's orphaned successors.
+func (d *Database) DeleteNode(id int64) ([]*multitree.Node, error) {
+	var orphans []*multitree.Node
 
 	txf := func(tx *sql.Tx) error {
 		node, err := getGraph(tx, id)
@@ -388,20 +375,22 @@ func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 		}
 
 		// Auto-delete any empty date nodes.
-		for _, dn := range filterDateNodes(node.Predecessors) {
-			if len(dn.Successors) == 1 {
+		for _, dn := range filterDateNodes(node.Parents()) {
+			if len(dn.Children()) == 1 {
 				if err := deleteNode(tx, dn.ID); err != nil {
 					return err
 				}
-				// Remove from node too, so they're ignored in backprop.
-				node.RemovePredecessor(dn)
+				// Unlink to ignore in backprop.
+				if err := multitree.UnlinkNodes(dn, node); err != nil {
+					panic(err)
+				}
 			}
 		}
 
 		if err := backpropCompletion(tx, node); err != nil {
 			return err
 		}
-		orphans = node.Successors
+		orphans = node.Children()
 		return nil
 	}
 
@@ -411,11 +400,11 @@ func (d *Database) DeleteNode(id int64) ([]*graph.Node, error) {
 	return orphans, nil
 }
 
-// DeleteNodeRecursive deletes the tree rooted at the given node and updates
-// the graph. Nodes that have predecessors outside of this tree are preserved.
-// It returns a slice of all deleted nodes.
-func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
-	var deleted []*graph.Node
+// DeleteNodeRecursive deletes the tree rooted at the given node and updates the
+// multitree. Nodes that have parents outside of this tree are preserved. It
+// returns a slice of all deleted nodes.
+func (d *Database) DeleteNodeRecursive(id int64) ([]*multitree.Node, error) {
+	var deleted []*multitree.Node
 
 	txf := func(tx *sql.Tx) error {
 		node, err := getGraph(tx, id)
@@ -426,19 +415,17 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 			return fmt.Errorf("node does not exist")
 		}
 
-		// Root.
 		if err := deleteNode(tx, id); err != nil {
 			return err
 		}
 		deleted = append(deleted, node)
 
-		// Successors.
-		for _, n := range node.NodesAfter() {
-			if len(n.Predecessors) == 1 {
-				if err := deleteNode(tx, n.ID); err != nil {
+		for _, d := range node.Descendants() {
+			if len(d.Parents()) == 1 {
+				if err := deleteNode(tx, d.ID); err != nil {
 					return err
 				}
-				deleted = append(deleted, n)
+				deleted = append(deleted, d)
 			}
 		}
 
@@ -454,12 +441,13 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*graph.Node, error) {
 	return deleted, nil
 }
 
-func (d *Database) SetAlias(nodeId int64, alias string) error {
+func (d *Database) SetAlias(nodeID int64, alias string) error {
 	nullable := &alias
 	if alias == "" {
 		nullable = nil
 	}
-	r, err := d.DB.Exec("UPDATE nodes SET node_alias = ? WHERE node_id = ?", nullable, nodeId)
+	r, err := d.DB.Exec("UPDATE nodes SET node_alias = ? WHERE node_id = ?",
+		nullable, nodeID)
 	if err != nil {
 		return err
 	}

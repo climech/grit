@@ -3,7 +3,7 @@ package db
 import (
 	"database/sql"
 
-	"github.com/climech/grit/graph"
+	"github.com/climech/grit/multitree"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -19,8 +19,8 @@ type scannable interface {
 	Scan(...interface{}) error
 }
 
-func scanToNode(s scannable) (*graph.Node, error) {
-	node := &graph.Node{}
+func scanToNode(s scannable) (*multitree.Node, error) {
+	node := &multitree.Node{}
 	var alias sql.NullString
 	var completed sql.NullInt64
 	err := s.Scan(&node.ID, &node.Name, &alias, &node.Created, &completed)
@@ -33,7 +33,7 @@ func scanToNode(s scannable) (*graph.Node, error) {
 	return node, err
 }
 
-func rowToNode(row *sql.Row) (*graph.Node, error) {
+func rowToNode(row *sql.Row) (*multitree.Node, error) {
 	node, err := scanToNode(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -44,9 +44,9 @@ func rowToNode(row *sql.Row) (*graph.Node, error) {
 	return node, nil
 }
 
-func rowsToNodes(rows *sql.Rows) []*graph.Node {
+func rowsToNodes(rows *sql.Rows) []*multitree.Node {
 	defer rows.Close()
-	var nodes []*graph.Node
+	var nodes []*multitree.Node
 	for rows.Next() {
 		node, _ := scanToNode(rows)
 		nodes = append(nodes, node)
@@ -54,28 +54,31 @@ func rowsToNodes(rows *sql.Rows) []*graph.Node {
 	return nodes
 }
 
-func rowToEdge(row *sql.Row) (*graph.Edge, error) {
-	edge := &graph.Edge{}
-	err := row.Scan(&edge.ID, &edge.OriginID, &edge.DestID)
+func rowToLink(row *sql.Row) (*multitree.Link, error) {
+	link := &multitree.Link{}
+	err := row.Scan(&link.ID, &link.OriginID, &link.DestID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return edge, err
+	return link, err
 }
 
-func rowsToEdges(rows *sql.Rows) []*graph.Edge {
+func rowsToLinks(rows *sql.Rows) []*multitree.Link {
 	defer rows.Close()
-	var edges []*graph.Edge
+	var links []*multitree.Link
 	for rows.Next() {
-		edge := &graph.Edge{}
-		rows.Scan(&edge.ID, &edge.OriginID, &edge.DestID)
-		edges = append(edges, edge)
+		link := &multitree.Link{}
+		err := rows.Scan(&link.ID, &link.OriginID, &link.DestID)
+		if err != nil {
+			panic(err)
+		}
+		links = append(links, link)
 	}
-	return edges
+	return links
 }
 
-func filterDateNodes(nodes []*graph.Node) []*graph.Node {
-	var filtered []*graph.Node
+func filterDateNodes(nodes []*multitree.Node) []*multitree.Node {
+	var filtered []*multitree.Node
 	for _, n := range nodes {
 		if n.IsDateNode() {
 			filtered = append(filtered, n)

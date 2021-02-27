@@ -19,9 +19,9 @@ func migrateFrom0(db *sql.DB) error {
 			UNIQUE(node_alias)
 		)`
 
-	createEdges := `
-		CREATE TABLE edges (
-			edge_id INTEGER PRIMARY KEY,
+	createLinks := `
+		CREATE TABLE links (
+			link_id INTEGER PRIMARY KEY,
 			origin_id INTEGER NOT NULL,
 			dest_id INTEGER NOT NULL,
 
@@ -40,7 +40,7 @@ func migrateFrom0(db *sql.DB) error {
 	if _, err := db.Exec(createNodes); err != nil {
 		return err
 	}
-	if _, err := db.Exec(createEdges); err != nil {
+	if _, err := db.Exec(createLinks); err != nil {
 		return err
 	}
 
@@ -76,7 +76,9 @@ func (d *Database) migrate() error {
 			return err
 		}
 		v++
-		d.setUserVersion(v)
+		if err := d.setUserVersion(v); err != nil {
+			return err
+		}
 	}
 
 	return nil
