@@ -161,20 +161,25 @@ func (n *Node) LeavesAll() []*Node {
 	return leaves
 }
 
-// Copy returns a deep copy of the multitree that the node belongs to.
+// Copy returns a shallow, unlinked copy of the node.
 func (n *Node) Copy() *Node {
+	return &Node{
+		ID:        n.ID,
+		Name:      n.Name,
+		Alias:     n.Alias,
+		Created:   n.Created,
+		Completed: copyCompletion(n.Completed),
+	}
+}
+
+// Copy returns a deep copy of the entire multitree that the node belongs to.
+func (n *Node) DeepCopy() *Node {
 	nodes := n.All()
 	nodesByID := make(map[int64]*Node)
 
 	// Copy the nodes into the map, ignoring the links for now.
 	for _, src := range nodes {
-		nodesByID[src.ID] = &Node{
-			ID:        src.ID,
-			Name:      src.Name,
-			Alias:     src.Alias,
-			Created:   src.Created,
-			Completed: copyCompletion(src.Completed),
-		}
+		nodesByID[src.ID] = src.Copy()
 	}
 
 	// Create the links between the new nodes.
@@ -244,7 +249,7 @@ func (n *Node) hasDiamond() (found bool) {
 	return found
 }
 
-// Get returns the node matching the ID, or nil, if no match is found.
+// Get returns the first node matching the ID, or nil, if no match is found.
 func (n *Node) Get(id int64) *Node {
 	for _, node := range n.All() {
 		if node.ID == id {
@@ -264,7 +269,7 @@ func (n *Node) GetByName(name string) *Node {
 	return nil
 }
 
-// Get returns the node matching the alias, or nil, if no match is found.
+// Get returns the first node matching the alias, or nil, if no match is found.
 func (n *Node) GetByAlias(alias string) *Node {
 	for _, node := range n.All() {
 		if node.Alias == alias {
