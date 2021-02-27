@@ -50,13 +50,8 @@ func TestLoop(t *testing.T) {
 		t.Fatal("couldn't create node (1)")
 	}
 
-	// To create a loop, link node to itself.
 	if _, err := a.LinkNodes(node.ID, node.ID); err == nil {
-		t.Fatal("loop created (got: nil, want: *AppError)")
-	} else if ae, ok := err.(*AppError); !ok {
-		t.Fatalf("got error, but not of type *AppError: %v", err)
-	} else if ok && ae.Code != ErrForbidden {
-		t.Fatalf("got AppError, but ae.Code != ErrForbidden: %v", err)
+		t.Fatal("loop created and no error returned")
 	}
 }
 
@@ -75,11 +70,11 @@ func TestBackEdge(t *testing.T) {
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
-	node2, err := a.AddSuccessor("test", node1.ID)
+	node2, err := a.AddChild("test", node1.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (2)")
 	}
-	node3, err := a.AddSuccessor("test", node2.ID)
+	node3, err := a.AddChild("test", node2.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (3)")
 	}
@@ -105,11 +100,11 @@ func TestForwardEdge(t *testing.T) {
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
-	node2, err := a.AddSuccessor("test", node1.ID)
+	node2, err := a.AddChild("test", node1.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (2)")
 	}
-	node3, err := a.AddSuccessor("test", node2.ID)
+	node3, err := a.AddChild("test", node2.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (3)")
 	}
@@ -136,7 +131,7 @@ func TestCrossEdge(t *testing.T) {
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
-	succ, err := a.AddSuccessor("test", root1.ID)
+	succ, err := a.AddChild("test", root1.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (2)")
 	}
@@ -166,15 +161,15 @@ func TestStatusChange(t *testing.T) {
 	if err != nil {
 		t.Fatal("couldn't create node (1)")
 	}
-	node2, err := a.AddSuccessor("test", node1.ID)
+	node2, err := a.AddChild("test", node1.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (2)")
 	}
-	node3, err := a.AddSuccessor("test", node1.ID)
+	node3, err := a.AddChild("test", node1.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (3)")
 	}
-	node4, err := a.AddSuccessor("test", node3.ID)
+	node4, err := a.AddChild("test", node3.ID)
 	if err != nil {
 		t.Fatal("couldn't create node (4)")
 	}
@@ -222,7 +217,8 @@ func TestStatusChange(t *testing.T) {
 		}
 		if !reflect.DeepEqual(c3, c4) {
 			t.Errorf("successor should inherit the completion time from its checked "+
-				"predecessor; want %v, got %v", ptrValueToString(c3), ptrValueToString(c4))
+				"predecessor; want %v, got %v", ptrValueToString(c3),
+				ptrValueToString(c4))
 		}
 	}
 

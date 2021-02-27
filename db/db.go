@@ -77,7 +77,7 @@ func (d *Database) execTxFunc(f func(*sql.Tx) error) error {
 		return err
 	}
 	if err := f(tx); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()

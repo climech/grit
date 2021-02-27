@@ -1,4 +1,4 @@
-package graph
+package multitree
 
 import (
 	"errors"
@@ -7,6 +7,9 @@ import (
 )
 
 func ValidateNodeName(name string) error {
+	if ValidateDateNodeName(name) == nil {
+		return errors.New("name is reserved")
+	}
 	if len(name) == 0 {
 		return errors.New("invalid node name (empty name)")
 	}
