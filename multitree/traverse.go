@@ -1,17 +1,17 @@
 package multitree
 
-type searchState int
+type SearchState int
 
 const (
-	searchStateWhite searchState = iota // undiscovered
-	searchStateGray                     // discovered, but not finished
-	searchStateBlack                    // finished
+	SearchStateWhite SearchState = iota // undiscovered
+	SearchStateGray                     // discovered, but not finished
+	SearchStateBlack                    // finished
 )
 
-// traverseDescendants calls f for each descendant of the node. The function is
+// TraverseDescendants calls f for each descendant of the node. The function is
 // passed a pointer to the current node and a stop function that can be called
 // to exit early.
-func (n *Node) traverseDescenants(f func(*Node, func())) {
+func (n *Node) TraverseDescendants(f func(*Node, func())) {
 	var stop bool
 	stopFunc := func() {
 		stop = true
@@ -29,10 +29,10 @@ func (n *Node) traverseDescenants(f func(*Node, func())) {
 	traverse(n)
 }
 
-// traverseAncestors calls f for each ancestor of the node. The function is
+// TraverseAncestors calls f for each ancestor of the node. The function is
 // passed a pointer to the current node and a stop function that can be called
 // to exit early.
-func (n *Node) traverseAncestors(f func(*Node, func())) {
+func (n *Node) TraverseAncestors(f func(*Node, func())) {
 	var stop bool
 	stopFunc := func() {
 		stop = true
@@ -50,17 +50,17 @@ func (n *Node) traverseAncestors(f func(*Node, func())) {
 	traverse(n)
 }
 
-func dfs(node *Node, f func(*Node, searchState, func()), directed bool) {
+func dfs(node *Node, f func(*Node, SearchState, func()), directed bool) {
 	var stop bool
 	stopFunc := func() {
 		stop = true
 	}
 
-	stateByID := make(map[int64]searchState) // not in map => white
+	stateByID := make(map[int64]SearchState) // not in map => white
 	var traverse func(*Node)
 
 	traverse = func(current *Node) {
-		stateByID[current.ID] = searchStateGray
+		stateByID[current.ID] = SearchStateGray
 
 		reachable := current.children
 		if !directed {
@@ -74,30 +74,31 @@ func dfs(node *Node, f func(*Node, searchState, func()), directed bool) {
 			if ss, ok := stateByID[r.ID]; ok {
 				f(r, ss, stopFunc)
 			} else {
-				f(r, searchStateWhite, stopFunc)
+				f(r, SearchStateWhite, stopFunc)
 				traverse(r)
 			}
 		}
 
-		stateByID[current.ID] = searchStateBlack
+		stateByID[current.ID] = SearchStateBlack
 	}
 
-	f(node, searchStateWhite, stopFunc)
+	f(node, SearchStateWhite, stopFunc)
 	traverse(node)
 }
 
-// depthFirstSearch traverses the graph directionally starting from the node,
+// DepthFirstSearch traverses the graph directionally starting from the node,
 // calling f on each step forward. The function is passed a pointer to the
 // current node, the node's search state, and a stop function that can be called
 // to exit early.
-func (n *Node) depthFirstSearch(f func(*Node, searchState, func())) {
+func (n *Node) DepthFirstSearch(f func(*Node, SearchState, func())) {
 	dfs(n, f, true)
 }
 
-// depthFirstSearchAll traverses the entire graph, ignoring the direction,
-// advancing through parents and children alike. It starts from n and calls f on
-// each step forward. The function is passed a pointer to the current node, the
-// node's search state, and a stop function that can be called to exit early.
-func (n *Node) depthFirstSearchAll(f func(*Node, searchState, func())) {
+// DepthFirstSearchUndirected traverses the entire graph, ignoring the
+// direction, advancing through parents and children alike. It starts from n and
+// calls f on each step forward. The function is passed a pointer to the current
+// node, the node's search state, and a stop function that can be called to exit
+// early.
+func (n *Node) DepthFirstSearchUndirected(f func(*Node, SearchState, func())) {
 	dfs(n, f, false)
 }

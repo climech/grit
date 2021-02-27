@@ -77,7 +77,7 @@ func (n *Node) Parents() []*Node {
 // Ancestors returns a flat list of the node's ancestors.
 func (n *Node) Ancestors() []*Node {
 	var nodes []*Node
-	n.traverseAncestors(func(current *Node, _ func()) {
+	n.TraverseAncestors(func(current *Node, _ func()) {
 		nodes = append(nodes, current)
 	})
 	return nodes
@@ -86,7 +86,7 @@ func (n *Node) Ancestors() []*Node {
 // Descendants returns a flat list of the node's descendants.
 func (n *Node) Descendants() []*Node {
 	var nodes []*Node
-	n.traverseDescenants(func(current *Node, _ func()) {
+	n.TraverseDescendants(func(current *Node, _ func()) {
 		nodes = append(nodes, current)
 	})
 	return nodes
@@ -96,8 +96,8 @@ func (n *Node) Descendants() []*Node {
 // by ID in ascending order.
 func (n *Node) All() []*Node {
 	var nodes []*Node
-	n.depthFirstSearchAll(func(cur *Node, ss searchState, _ func()) {
-		if ss == searchStateWhite {
+	n.DepthFirstSearchUndirected(func(cur *Node, ss SearchState, _ func()) {
+		if ss == SearchStateWhite {
 			nodes = append(nodes, cur)
 		}
 	})
@@ -109,7 +109,7 @@ func (n *Node) All() []*Node {
 // the way up. The nodes are sorted by ID in ascending order.
 func (n *Node) Roots() []*Node {
 	var roots []*Node
-	n.traverseAncestors(func(current *Node, _ func()) {
+	n.TraverseAncestors(func(current *Node, _ func()) {
 		if current.IsRoot() {
 			roots = append(roots, current)
 		}
@@ -139,7 +139,7 @@ func (n *Node) IsLeaf() bool {
 
 func (n *Node) Leaves() []*Node {
 	var leaves []*Node
-	n.traverseDescenants(func(current *Node, _ func()) {
+	n.TraverseDescendants(func(current *Node, _ func()) {
 		if current.IsLeaf() {
 			leaves = append(leaves, current)
 		}
@@ -209,8 +209,8 @@ func (n *Node) hasBackEdge() (found bool) {
 		roots = append(roots, n)
 	}
 	for _, r := range roots {
-		r.depthFirstSearch(func(cur *Node, ss searchState, stop func()) {
-			if ss == searchStateGray {
+		r.DepthFirstSearch(func(cur *Node, ss SearchState, stop func()) {
+			if ss == SearchStateGray {
 				found = true
 				stop()
 			}
@@ -231,8 +231,8 @@ func (n *Node) hasDiamond() (found bool) {
 		panic("cyclic graph passed to Node.hasDiamond")
 	}
 	for _, r := range roots {
-		r.depthFirstSearch(func(cur *Node, ss searchState, stop func()) {
-			if ss == searchStateBlack {
+		r.DepthFirstSearch(func(cur *Node, ss SearchState, stop func()) {
+			if ss == SearchStateBlack {
 				found = true
 				stop()
 			}
