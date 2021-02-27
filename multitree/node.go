@@ -1,0 +1,273 @@
+package multitree
+
+type Node struct {
+	ID   int64
+	Name string
+
+	// Alias is an optional secondary identifier of the node.
+	Alias string
+
+	// Created holds the Unix timestamp for the node's creation time.
+	Created int64
+
+	// Completed points to the Unix timestamp of when the node was marked as
+	// completed, or nil, if the node hasn't been completed yet.
+	Completed *int64
+
+	parents  []*Node
+	children []*Node
+}
+
+func New(name string) *Node {
+	return &Node{Name: name}
+}
+
+func (n *Node) nextID() int64 {
+	all := n.All()
+	return all[len(all)-1].ID + 1
+}
+
+// New creates a new node with the ID set to 1 more than the highest ID in the
+// multitree.
+func (n *Node) New(name string) *Node {
+	return &Node{ID: n.nextID(), Name: name}
+}
+
+func (n *Node) IsCompleted() bool {
+	return n.Completed != nil
+}
+
+func (n *Node) IsInProgress() bool {
+	if n.IsCompleted() {
+		return false
+	}
+	for _, d := range n.Descendants() {
+		if d.IsCompleted() {
+			return true
+		}
+	}
+	return false
+}
+
+func (n *Node) IsInactive() bool {
+	return !n.IsCompleted() && !n.IsInProgress()
+}
+
+func (n *Node) IsRoot() bool {
+	return len(n.parents) == 0
+}
+
+func (n *Node) IsDateNode() bool {
+	if n.IsRoot() && ValidateDateNodeName(n.Name) == nil {
+		return true
+	}
+	return false
+}
+
+func (n *Node) Children() []*Node {
+	return n.children
+}
+
+func (n *Node) Parents() []*Node {
+	return n.parents
+}
+
+// Ancestors returns a flat list of the node's ancestors.
+func (n *Node) Ancestors() []*Node {
+	var nodes []*Node
+	n.traverseAncestors(func(current *Node, _ func()) {
+		nodes = append(nodes, current)
+	})
+	return nodes
+}
+
+// Descendants returns a flat list of the node's descendants.
+func (n *Node) Descendants() []*Node {
+	var nodes []*Node
+	n.traverseDescenants(func(current *Node, _ func()) {
+		nodes = append(nodes, current)
+	})
+	return nodes
+}
+
+// All returns a flat list of all nodes in the multitree. The nodes are sorted
+// by ID in ascending order.
+func (n *Node) All() []*Node {
+	var nodes []*Node
+	n.depthFirstSearchAll(func(cur *Node, ss searchState, _ func()) {
+		if ss == searchStateWhite {
+			nodes = append(nodes, cur)
+		}
+	})
+	sortNodesByID(nodes)
+	return nodes
+}
+
+// Roots returns the local roots found by following the node's ancestors all
+// the way up. The nodes are sorted by ID in ascending order.
+func (n *Node) Roots() []*Node {
+	var roots []*Node
+	n.traverseAncestors(func(current *Node, _ func()) {
+		if current.IsRoot() {
+			roots = append(roots, current)
+		}
+	})
+	sortNodesByID(roots)
+	return roots
+}
+
+// RootsAll returns a list of all roots in the multitree, not just the roots
+// local to the node. The nodes are sorted by ID in ascending order.
+func (n *Node) RootsAll() []*Node {
+	var roots []*Node
+	for _, node := range n.All() {
+		if node.IsRoot() {
+			roots = append(roots, node)
+		}
+	}
+	sortNodesByID(roots)
+	return roots
+}
+
+// Roots returns the local roots found by following the node's descendants all
+// the way down. The nodes are sorted by ID in ascending order.
+func (n *Node) IsLeaf() bool {
+	return len(n.children) == 0
+}
+
+func (n *Node) Leaves() []*Node {
+	var leaves []*Node
+	n.traverseDescenants(func(current *Node, _ func()) {
+		if current.IsLeaf() {
+			leaves = append(leaves, current)
+		}
+	})
+	sortNodesByID(leaves)
+	return leaves
+}
+
+// LeavesAll returns a list of all leaves in the multitree, not just the leaves
+// local to the node. The nodes are sorted by ID in ascending order.
+func (n *Node) LeavesAll() []*Node {
+	var leaves []*Node
+	for _, node := range n.All() {
+		if node.IsLeaf() {
+			leaves = append(leaves, node)
+		}
+	}
+	sortNodesByID(leaves)
+	return leaves
+}
+
+// Copy returns a deep copy of the multitree that the node belongs to.
+func (n *Node) Copy() *Node {
+	nodes := n.All()
+	nodesByID := make(map[int64]*Node)
+
+	// Copy the nodes into the map, ignoring the links for now.
+	for _, src := range nodes {
+		nodesByID[src.ID] = &Node{
+			ID:        src.ID,
+			Name:      src.Name,
+			Alias:     src.Alias,
+			Created:   src.Created,
+			Completed: copyCompletion(src.Completed),
+		}
+	}
+
+	// Create the links between the new nodes.
+	for _, src := range nodes {
+		nodesByID[src.ID].parents = make([]*Node, len(src.parents))
+		for i, p := range src.parents {
+			nodesByID[src.ID].parents[i] = nodesByID[p.ID]
+		}
+		nodesByID[src.ID].children = make([]*Node, len(src.children))
+		for i, c := range src.children {
+			nodesByID[src.ID].children[i] = nodesByID[c.ID]
+		}
+	}
+
+	return nodesByID[n.ID]
+}
+
+func (n *Node) HasChild(node *Node) bool {
+	return nodesInclude(n.children, node)
+}
+
+func (n *Node) HasParent(node *Node) bool {
+	return nodesInclude(n.parents, node)
+}
+
+// hasBackEdge returns true if at least one back edge is found in the directed
+// graph.
+func (n *Node) hasBackEdge() (found bool) {
+	roots := n.RootsAll()
+	if len(roots) == 0 {
+		// Cyclic graph -- choose any node as our "root".
+		roots = append(roots, n)
+	}
+	for _, r := range roots {
+		r.depthFirstSearch(func(cur *Node, ss searchState, stop func()) {
+			if ss == searchStateGray {
+				found = true
+				stop()
+			}
+		})
+		if found {
+			break
+		}
+	}
+	return found
+}
+
+// hasDiamond returns true if at least one diamond is found in the graph, which
+// is here assumed to be a DAG. (A diamond occurs when two directed paths
+// diverge from a node and meet again at some other node.)
+func (n *Node) hasDiamond() (found bool) {
+	roots := n.RootsAll()
+	if len(roots) == 0 {
+		panic("cyclic graph passed to Node.hasDiamond")
+	}
+	for _, r := range roots {
+		r.depthFirstSearch(func(cur *Node, ss searchState, stop func()) {
+			if ss == searchStateBlack {
+				found = true
+				stop()
+			}
+		})
+		if found {
+			break
+		}
+	}
+	return found
+}
+
+// Get returns the node matching the ID, or nil, if no match is found.
+func (n *Node) Get(id int64) *Node {
+	for _, node := range n.All() {
+		if node.ID == id {
+			return node
+		}
+	}
+	return nil
+}
+
+// Get returns the first node matching the name, or nil, if no match is found.
+func (n *Node) GetByName(name string) *Node {
+	for _, node := range n.All() {
+		if node.Name == name {
+			return node
+		}
+	}
+	return nil
+}
+
+// Get returns the node matching the alias, or nil, if no match is found.
+func (n *Node) GetByAlias(alias string) *Node {
+	for _, node := range n.All() {
+		if node.Alias == alias {
+			return node
+		}
+	}
+	return nil
+}
