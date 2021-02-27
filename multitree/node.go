@@ -20,7 +20,7 @@ type Node struct {
 	children []*Node
 }
 
-func New(name string) *Node {
+func NewNode(name string) *Node {
 	return &Node{Name: name}
 }
 

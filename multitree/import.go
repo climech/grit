@@ -36,7 +36,7 @@ func ImportNodes(reader io.Reader) ([]*Node, error) {
 
 		var newNode *Node
 		if len(stack) == 0 {
-			newNode = New(name)
+			newNode = NewNode(name)
 			roots = append(roots, newNode)
 		} else {
 			topNode := stack[len(stack)-1].node
