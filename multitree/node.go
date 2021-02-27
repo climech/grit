@@ -80,6 +80,9 @@ func (n *Node) Ancestors() []*Node {
 	n.TraverseAncestors(func(current *Node, _ func()) {
 		nodes = append(nodes, current)
 	})
+	if len(nodes) > 0 {
+		return nodes[1:]
+	}
 	return nodes
 }
 
@@ -89,6 +92,9 @@ func (n *Node) Descendants() []*Node {
 	n.TraverseDescendants(func(current *Node, _ func()) {
 		nodes = append(nodes, current)
 	})
+	if len(nodes) > 0 {
+		return nodes[1:]
+	}
 	return nodes
 }
 
