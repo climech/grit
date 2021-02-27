@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/climech/grit/app"
-	"github.com/climech/grit/graph"
+	"github.com/climech/grit/multitree"
 
 	"github.com/fatih/color"
 	cli "github.com/jawher/mow.cli"
@@ -44,16 +44,17 @@ func cmdAdd(cmd *cli.Cmd) {
 			}
 			color.Cyan("(%d)", node.ID)
 		} else {
-			node, err := a.AddSuccessor(name, *predecessor)
+			node, err := a.AddChild(name, *predecessor)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
+			parents := node.Parents()
 			accent := color.New(color.FgCyan).SprintFunc()
-			if node.Predecessors[0].Name == today {
+			if parents[0].Name == today {
 				accent = color.New(color.FgYellow).SprintFunc()
 			}
 			highlighted := accent(fmt.Sprintf("(%d)", node.ID))
-			fmt.Printf("(%d) -> %s\n", node.Predecessors[0].ID, highlighted)
+			fmt.Printf("(%d) -> %s\n", parents[0].ID, highlighted)
 		}
 	}
 }
@@ -78,7 +79,7 @@ func cmdTree(cmd *cli.Cmd) {
 		if node == nil {
 			die("Node does not exist")
 		}
-		fmt.Print(node.TreeString())
+		fmt.Print(node.StringTree())
 	}
 }
 
@@ -93,15 +94,16 @@ func cmdList(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
-		var nodes []*graph.Node
+		var nodes []*multitree.Node
 
 		if *selector == "" {
+			// List roots by default.
 			roots, err := a.GetRoots()
 			if err != nil {
 				die(err)
 			}
 			for _, r := range roots {
-				// Get as part of graph for accurate status.
+				// Get as part of multitree for accurate status.
 				n, err := a.GetGraph(r.ID)
 				if err != nil {
 					die(err)
@@ -119,7 +121,7 @@ func cmdList(cmd *cli.Cmd) {
 			if node == nil {
 				die("Node does not exist")
 			}
-			nodes = node.Successors
+			nodes = node.Children()
 		}
 
 		for _, n := range nodes {
@@ -202,32 +204,6 @@ func cmdUnlink(cmd *cli.Cmd) {
 
 		if err := a.UnlinkNodes(*origin, *target); err != nil {
 			dief("Couldn't unlink nodes: %v\n", err)
-		}
-	}
-}
-
-func cmdListRoots(cmd *cli.Cmd) {
-	cmd.Action = func() {
-		a, err := app.New()
-		if err != nil {
-			die(err)
-		}
-		defer a.Close()
-
-		roots, err := a.GetRoots()
-		if err != nil {
-			die(err)
-		}
-		for _, r := range roots {
-			// Get the nodes as members of their graphs to get accurate status.
-			n, err := a.GetGraph(r.ID)
-			if err != nil {
-				die(err)
-			}
-			if n == nil {
-				continue
-			}
-			fmt.Println(n)
 		}
 	}
 }
@@ -327,8 +303,9 @@ func cmdRemove(cmd *cli.Cmd) {
 	cmd.Spec = "[-r] [-v] NODE..."
 	var (
 		selectors = cmd.StringsArg("NODE", nil, "node selector(s)")
-		recursive = cmd.BoolOpt("r recursive", false, "remove node and all its descendants")
-		verbose   = cmd.BoolOpt("v verbose", false, "print each removed node")
+		recursive = cmd.BoolOpt("r recursive", false,
+			"remove node and all its descendants")
+		verbose = cmd.BoolOpt("v verbose", false, "print each removed node")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -388,9 +365,11 @@ func cmdImport(cmd *cli.Cmd) {
 	cmd.Spec = "[ -p=<predecessor> | -r ] [FILENAME]"
 	today := time.Now().Format("2006-01-02")
 	var (
-		filename    = cmd.StringArg("FILENAME", "", "file containing tab-indented lines")
-		predecessor = cmd.StringOpt("p predecessor", today, "predecessor for the tree root(s)")
-		makeRoot    = cmd.BoolOpt("r root", false, "create top-level tree(s)")
+		filename = cmd.StringArg("FILENAME", "",
+			"file containing tab-indented lines")
+		predecessor = cmd.StringOpt("p predecessor", today,
+			"predecessor for the tree root(s)")
+		makeRoot = cmd.BoolOpt("r root", false, "create top-level tree(s)")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -411,10 +390,14 @@ func cmdImport(cmd *cli.Cmd) {
 			reader = f
 		}
 
+		roots, err := multitree.ImportNodes(reader)
+		if err != nil {
+			dief("Import error: %v", err)
+		}
+
 		var errs []error
 		var treesTotal, nodesTotal int
 
-		roots := graph.ImportNodes(reader)
 		for _, root := range roots {
 			var id int64
 			var err error
@@ -432,9 +415,9 @@ func cmdImport(cmd *cli.Cmd) {
 			if g, err := a.GetGraph(id); err != nil {
 				errs = append(errs, err)
 			} else {
-				fmt.Print(g.TreeString())
+				fmt.Print(g.StringTree())
 				treesTotal++
-				nodesTotal += len(g.Tree().GetAll())
+				nodesTotal += len(g.Tree().All())
 			}
 		}
 
@@ -464,12 +447,15 @@ func cmdStat(cmd *cli.Cmd) {
 			die("Node does not exist")
 		}
 
-		if len(node.Predecessors)+len(node.Successors) > 0 {
-			fmt.Println(node.EdgeString())
+		parents := node.Parents()
+		children := node.Children()
+
+		if len(parents)+len(children) > 0 {
+			fmt.Println(node.StringNeighbors())
 		}
 
 		status := node.Status().String()
-		leaves := node.Tree().Leaves()
+		leaves := node.Leaves()
 		done := 0
 		total := len(leaves)
 		for _, leaf := range leaves {
@@ -483,7 +469,7 @@ func cmdStat(cmd *cli.Cmd) {
 
 		// Make name bold if root.
 		name := node.Name
-		if len(node.Predecessors) == 0 {
+		if len(parents) == 0 {
 			bold := color.New(color.Bold).SprintFunc()
 			name = bold(name)
 		}
@@ -491,8 +477,8 @@ func cmdStat(cmd *cli.Cmd) {
 		fmt.Printf("ID: %d\n", node.ID)
 		fmt.Printf("Name: %s\n", name)
 		fmt.Printf("Status: %s\n", status)
-		fmt.Printf("Predecessors: %d\n", len(node.Predecessors))
-		fmt.Printf("Successors: %d\n", len(node.Successors))
+		fmt.Printf("Predecessors: %d\n", len(parents))
+		fmt.Printf("Successors: %d\n", len(children))
 
 		if node.Alias != "" {
 			fmt.Printf("Alias: %s\n", node.Alias)

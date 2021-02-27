@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"github.com/climech/grit/app"
-	"github.com/jawher/mow.cli"
+	cli "github.com/jawher/mow.cli"
 )
 
 func main() {
-	c := cli.App(app.AppName, "A digraph-based personal task manager")
+	c := cli.App(app.AppName, "A multitree-based personal task manager")
 	c.Version("v version", fmt.Sprintf("%s %s", app.AppName, app.Version))
 
 	c.Command("add", "Add a new node", cmdAdd)
@@ -19,7 +20,7 @@ func main() {
 	c.Command("uncheck", "Revert node status to inactive", cmdUncheck)
 	c.Command("link", "Create a link from one node to another", cmdLink)
 	c.Command("unlink", "Remove an existing link between two nodes", cmdUnlink)
-	c.Command("list ls", "List all roots, or the direct successors of specified node", cmdList)
+	c.Command("list ls", "List children of selected node", cmdList)
 	c.Command("list-dates lsd", "List all date nodes", cmdListDates)
 	c.Command("rename", "Rename a node", cmdRename)
 	c.Command("remove rm", "Remove node(s)", cmdRemove)
