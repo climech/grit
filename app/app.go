@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/climech/grit/db"
-	"github.com/climech/grit/graph"
+	"github.com/climech/grit/multitree"
 
 	sqlite "github.com/mattn/go-sqlite3"
 )
@@ -51,72 +51,75 @@ func (a *App) Close() {
 	a.Database.Close()
 }
 
-// AddNode creates a root and returns it as a member of its graph.
-func (a *App) AddRoot(name string) (*graph.Node, error) {
-	if err := graph.ValidateNodeName(name); err != nil {
+// AddNode creates a root and returns it as a member of its multitree.
+func (a *App) AddRoot(name string) (*multitree.Node, error) {
+	if err := multitree.ValidateNodeName(name); err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
-	if err := graph.ValidateDateNodeName(name); err == nil {
-		return nil, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", name))
+	if err := multitree.ValidateDateNodeName(name); err == nil {
+		return nil, NewError(ErrInvalidName,
+			fmt.Sprintf("%v is a reserved name", name))
 	}
-	nodeId, err := a.Database.CreateNode(name, 0)
+	nodeID, err := a.Database.CreateNode(name, 0)
 	if err != nil {
 		return nil, err
 	}
-	return a.Database.GetGraph(nodeId)
+	return a.Database.GetGraph(nodeID)
 }
 
-// AddSuccessor creates a new node and links an existing node to it. A
-// predecessor d-node is implicitly created, if it doesn't already exist.
-func (a *App) AddSuccessor(name string, predecessor interface{}) (*graph.Node, error) {
-	if err := graph.ValidateNodeName(name); err != nil {
+// AddChild creates a new node and links an existing node to it. A
+// parent d-node is implicitly created, if it doesn't already exist.
+func (a *App) AddChild(name string, parent interface{}) (*multitree.Node, error) {
+	if err := multitree.ValidateNodeName(name); err != nil {
 		return nil, NewError(ErrInvalidName, err.Error())
 	}
-	if err := graph.ValidateDateNodeName(name); err == nil {
-		return nil, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", name))
+	if err := multitree.ValidateDateNodeName(name); err == nil {
+		return nil, NewError(ErrInvalidName,
+			fmt.Sprintf("%v is a reserved name", name))
 	}
-	preId, err := a.selectorToId(predecessor)
+	parentID, err := a.selectorToID(parent)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
 
-	var nodeId int64
+	var nodeID int64
 	var nodeErr error
-	if preId == 0 {
-		nodeId, nodeErr = a.Database.CreateSuccessorOfDateNode(predecessor.(string), name)
+	if parentID == 0 {
+		nodeID, nodeErr = a.Database.CreateChildOfDateNode(parent.(string), name)
 	} else {
-		nodeId, nodeErr = a.Database.CreateNode(name, preId)
+		nodeID, nodeErr = a.Database.CreateNode(name, parentID)
 	}
 
 	if nodeErr != nil {
 		if e, ok := nodeErr.(sqlite.Error); ok && e.ExtendedCode == sqlite.ErrConstraintForeignKey {
-			return nil, NewError(ErrNotFound, "predecessor does not exist")
+			return nil, NewError(ErrNotFound, "parent does not exist")
 		} else {
 			return nil, nodeErr
 		}
 	}
 
-	return a.Database.GetGraph(nodeId)
+	return a.Database.GetGraph(nodeID)
 }
 
-func (a *App) AddTree(node *graph.Node, predecessor interface{}) (int64, error) {
-	for _, n := range node.GetAll() {
-		if err := graph.ValidateNodeName(n.Name); err != nil {
+func (a *App) AddTree(node *multitree.Node, parent interface{}) (int64, error) {
+	for _, n := range node.All() {
+		if err := multitree.ValidateNodeName(n.Name); err != nil {
 			return 0, NewError(ErrInvalidName, err.Error())
 		}
-		if err := graph.ValidateDateNodeName(n.Name); err == nil {
-			return 0, NewError(ErrInvalidName, fmt.Sprintf("%v is a reserved name", n.Name))
+		if err := multitree.ValidateDateNodeName(n.Name); err == nil {
+			return 0, NewError(ErrInvalidName,
+				fmt.Sprintf("%v is a reserved name", n.Name))
 		}
 	}
-	preId, err := a.selectorToId(predecessor)
+	parentID, err := a.selectorToID(parent)
 	if err != nil {
 		return 0, NewError(ErrInvalidSelector, err.Error())
 	}
-	id, err := a.Database.CreateTree(node, preId)
+	id, err := a.Database.CreateTree(node, parentID)
 	if err != nil {
 		e, ok := err.(sqlite.Error)
 		if ok && e.ExtendedCode == sqlite.ErrConstraintForeignKey {
-			return 0, NewError(ErrNotFound, "predecessor does not exist")
+			return 0, NewError(ErrNotFound, "parent does not exist")
 		}
 		return 0, err
 	}
@@ -124,17 +127,17 @@ func (a *App) AddTree(node *graph.Node, predecessor interface{}) (int64, error) 
 }
 
 func (a *App) RenameNode(selector interface{}, name string) error {
-	if err := graph.ValidateDateNodeName(name); err == nil {
+	if err := multitree.ValidateDateNodeName(name); err == nil {
 		return NewError(ErrForbidden, "date nodes cannot be renamed")
 	}
-	id, err := a.selectorToId(selector)
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return NewError(ErrInvalidSelector, err.Error())
 	}
 	if id == 0 {
 		return NewError(ErrNotFound, "node does not exist")
 	}
-	if err := graph.ValidateNodeName(name); err != nil {
+	if err := multitree.ValidateNodeName(name); err != nil {
 		return NewError(ErrInvalidName, err.Error())
 	}
 
@@ -145,7 +148,7 @@ func (a *App) RenameNode(selector interface{}, name string) error {
 	if node == nil {
 		return NewError(ErrNotFound, "node does not exist")
 	}
-	if graph.ValidateDateNodeName(node.Name) == nil {
+	if multitree.ValidateDateNodeName(node.Name) == nil {
 		return NewError(ErrForbidden, "date nodes cannot be renamed")
 	}
 
@@ -155,94 +158,81 @@ func (a *App) RenameNode(selector interface{}, name string) error {
 	return nil
 }
 
-func (a *App) GetGraph(selector interface{}) (*graph.Node, error) {
-	id, err := a.selectorToId(selector)
+func (a *App) GetGraph(selector interface{}) (*multitree.Node, error) {
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
 	if id == 0 {
-		if s, ok := selector.(string); ok && graph.ValidateDateNodeName(s) == nil {
+		if s, ok := selector.(string); ok && multitree.ValidateDateNodeName(s) == nil {
 			// Return a mock d-node.
-			return graph.NewNode(s), nil
+			return multitree.NewNode(s), nil
 		}
 		return nil, NewError(ErrNotFound, "node does not exist")
 	}
 	return a.Database.GetGraph(id)
 }
 
-func (a *App) GetNode(selector interface{}) (*graph.Node, error) {
-	id, err := a.selectorToId(selector)
+func (a *App) GetNode(selector interface{}) (*multitree.Node, error) {
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
 	if id == 0 {
 		// Return mock d-node.
-		return graph.NewNode(selector.(string)), nil
+		return multitree.NewNode(selector.(string)), nil
 	}
 	return a.Database.GetNode(id)
 }
-func (a *App) GetNodeByName(name string) (*graph.Node, error) {
+func (a *App) GetNodeByName(name string) (*multitree.Node, error) {
 	return a.Database.GetNodeByName(name)
 }
 
-func (a *App) GetNodeByAlias(alias string) (*graph.Node, error) {
+func (a *App) GetNodeByAlias(alias string) (*multitree.Node, error) {
 	return a.Database.GetNodeByAlias(alias)
 }
 
-// LinkNodes creates a new edge connecting two nodes. D-nodes are implicitly
+// LinkNodes creates a new link connecting two nodes. D-nodes are implicitly
 // created as needed.
-func (a *App) LinkNodes(origin, dest interface{}) (*graph.Edge, error) {
-	originId, err := a.selectorToId(origin)
+func (a *App) LinkNodes(origin, dest interface{}) (*multitree.Link, error) {
+	originID, err := a.selectorToID(origin)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
-	destId, err := a.selectorToId(dest)
+	destID, err := a.selectorToID(dest)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
 
-	var edgeId int64
+	var linkID int64
 	var errCreate error
-	if originId == 0 {
-		edgeId, errCreate = a.Database.CreateEdgeFromDateNode(origin.(string), destId)
+	if originID == 0 {
+		linkID, errCreate = a.Database.CreateLinkFromDateNode(origin.(string), destID)
 	} else {
-		edgeId, errCreate = a.Database.CreateEdge(originId, destId)
+		linkID, errCreate = a.Database.CreateLink(originID, destID)
 	}
 	if errCreate != nil {
-		if e, ok := errCreate.(sqlite.Error); ok {
-			switch e.ExtendedCode {
-			case sqlite.ErrConstraintUnique:
-				return nil, NewError(ErrForbidden, "edge already exists")
-			case sqlite.ErrConstraintForeignKey:
-				return nil, NewError(ErrNotFound, "origin or dest does not exist")
-			case sqlite.ErrConstraintCheck:
-				return nil, NewError(ErrForbidden, "loops are not allowed")
-			default:
-				return nil, e
-			}
-		} else {
-			return nil, errCreate
-		}
+		return nil, errCreate
 	}
 
-	return a.Database.GetEdge(edgeId)
+	return a.Database.GetLink(linkID)
 }
 
-// UnlinkNodes removes the edge connecting the given nodes.
+// UnlinkNodes removes the link connecting the given nodes.
 func (a *App) UnlinkNodes(origin, dest interface{}) error {
-	originId, err := a.selectorToId(origin)
+	originID, err := a.selectorToID(origin)
 	if err != nil {
 		return NewError(ErrInvalidSelector, err.Error())
 	}
-	destId, err := a.selectorToId(dest)
+	destID, err := a.selectorToID(dest)
 	if err != nil {
 		return err
 	}
-	if originId == 0 || destId == 0 {
-		// Assuming there can't be an edge from/to an empty d-node.
-		return NewError(ErrNotFound, "edge does not exist")
+	if originID == 0 || destID == 0 {
+		// Assuming there can't be an link from/to an empty d-node.
+		return NewError(ErrNotFound, "link does not exist")
 	}
-	if err := a.Database.DeleteEdgeByEndpoints(originId, destId); err != nil {
+	if err := a.Database.DeleteLinkByEndpoints(originID, destID); err != nil {
 		return err
 	}
 	return nil
@@ -259,9 +249,9 @@ func (a *App) SetAlias(id int64, alias string) error {
 	return nil
 }
 
-// RemoveNode deletes the node and returns its orphaned successors.
-func (a *App) RemoveNode(selector interface{}) ([]*graph.Node, error) {
-	id, err := a.selectorToId(selector)
+// RemoveNode deletes the node and returns its orphaned children.
+func (a *App) RemoveNode(selector interface{}) ([]*multitree.Node, error) {
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
@@ -276,9 +266,9 @@ func (a *App) RemoveNode(selector interface{}) ([]*graph.Node, error) {
 }
 
 // RemoveNodeRecursive deletes the node and all its tree descendants. Nodes
-// that have multiple predecessors are only unlinked from the current tree.
-func (a *App) RemoveNodeRecursive(selector interface{}) ([]*graph.Node, error) {
-	id, err := a.selectorToId(selector)
+// that have multiple parents are only unlinked from the current tree.
+func (a *App) RemoveNodeRecursive(selector interface{}) ([]*multitree.Node, error) {
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return nil, NewError(ErrInvalidSelector, err.Error())
 	}
@@ -293,7 +283,7 @@ func (a *App) RemoveNodeRecursive(selector interface{}) ([]*graph.Node, error) {
 }
 
 func (a *App) checkNode(selector interface{}, value bool) error {
-	id, err := a.selectorToId(selector)
+	id, err := a.selectorToID(selector)
 	if err != nil {
 		return NewError(ErrInvalidSelector, err.Error())
 	}
@@ -311,7 +301,7 @@ func (a *App) UncheckNode(selector interface{}) error {
 	return a.checkNode(selector, false)
 }
 
-func (a *App) GetRoots() ([]*graph.Node, error) {
+func (a *App) GetRoots() ([]*multitree.Node, error) {
 	roots, err := a.Database.GetRoots()
 	if err != nil {
 		return nil, err
@@ -319,10 +309,10 @@ func (a *App) GetRoots() ([]*graph.Node, error) {
 	if len(roots) == 0 {
 		return nil, nil
 	}
-	var ret []*graph.Node
+	var ret []*multitree.Node
 	for _, r := range roots {
 		// Omit d-nodes.
-		if graph.ValidateDateNodeName(r.Name) != nil {
+		if multitree.ValidateDateNodeName(r.Name) != nil {
 			ret = append(ret, r)
 		}
 	}
@@ -330,7 +320,7 @@ func (a *App) GetRoots() ([]*graph.Node, error) {
 	return ret, nil
 }
 
-func (a *App) GetDateNodes() ([]*graph.Node, error) {
+func (a *App) GetDateNodes() ([]*multitree.Node, error) {
 	roots, err := a.Database.GetRoots()
 	if err != nil {
 		return nil, err
@@ -338,10 +328,10 @@ func (a *App) GetDateNodes() ([]*graph.Node, error) {
 	if len(roots) == 0 {
 		return nil, nil
 	}
-	var ret []*graph.Node
+	var ret []*multitree.Node
 	for _, r := range roots {
 		// Omit roots that aren't d-nodes.
-		if graph.ValidateDateNodeName(r.Name) == nil {
+		if multitree.ValidateDateNodeName(r.Name) == nil {
 			ret = append(ret, r)
 		}
 	}
@@ -349,14 +339,14 @@ func (a *App) GetDateNodes() ([]*graph.Node, error) {
 	return ret, nil
 }
 
-func (a *App) stringSelectorToId(selector string) (int64, error) {
+func (a *App) stringSelectorToID(selector string) (int64, error) {
 	// Check if integer.
 	id, err := strconv.ParseInt(selector, 10, 64)
 	if err == nil && id > 0 {
 		return id, nil
 	}
 	// Check if date.
-	if graph.ValidateDateNodeName(selector) == nil {
+	if multitree.ValidateDateNodeName(selector) == nil {
 		node, err := a.GetNodeByName(selector)
 		if err != nil {
 			return 0, err
@@ -367,7 +357,7 @@ func (a *App) stringSelectorToId(selector string) (int64, error) {
 		return node.ID, nil
 	}
 	// Check if alias.
-	if graph.ValidateNodeAlias(selector) == nil {
+	if multitree.ValidateNodeAlias(selector) == nil {
 		node, err := a.GetNodeByAlias(selector)
 		if err != nil {
 			return 0, err
@@ -380,20 +370,21 @@ func (a *App) stringSelectorToId(selector string) (int64, error) {
 	return 0, fmt.Errorf("invalid selector")
 }
 
-// selectorToId parses the selector and returns a valid node ID, or zero for
+// selectorToID parses the selector and returns a valid node ID, or zero for
 // valid d-node name that isn't in the DB.
-func (a *App) selectorToId(selector interface{}) (int64, error) {
+func (a *App) selectorToID(selector interface{}) (int64, error) {
 	switch value := selector.(type) {
-	case *graph.Node:
+	case *multitree.Node:
 		return value.ID, nil
 	case string:
-		return a.stringSelectorToId(value)
+		return a.stringSelectorToID(value)
 	case int64:
 		if value < 1 {
 			return 0, fmt.Errorf("invalid selector")
 		}
 		return value, nil
 	default:
-		panic(fmt.Sprintf("unsupported selector type: %v", reflect.TypeOf(selector)))
+		panic(fmt.Sprintf("unsupported selector type: %v",
+			reflect.TypeOf(selector)))
 	}
 }
