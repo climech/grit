@@ -179,3 +179,30 @@ func TestLeaves(t *testing.T) {
 			sprintfIDs(leavesAllWant), sprintfIDs(leavesAllGot))
 	}
 }
+
+func TestTree(t *testing.T) {
+	//
+	//     (0)
+	//     / \
+	//   (1) (2)  (3)
+	//       / \  / \
+	//     (4) (5)  (6)
+	//
+	var nodes []*Node
+	for i := 0; i < 7; i++ {
+		nodes = append(nodes, newTestNode(int64(i+1)))
+	}
+	_ = LinkNodes(nodes[0], nodes[1])
+	_ = LinkNodes(nodes[0], nodes[2])
+	_ = LinkNodes(nodes[2], nodes[4])
+	_ = LinkNodes(nodes[2], nodes[5])
+	_ = LinkNodes(nodes[3], nodes[5])
+	_ = LinkNodes(nodes[3], nodes[6])
+
+	want := sprintfIDs([]*Node{nodes[2], nodes[4], nodes[5]})
+	got := sprintfIDs(nodes[2].Tree().All())
+
+	if want != got {
+		t.Errorf("invalid tree nodes: want %s, got %s", want, got)
+	}
+}

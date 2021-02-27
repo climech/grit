@@ -167,6 +167,20 @@ func (n *Node) LeavesAll() []*Node {
 	return leaves
 }
 
+// Tree returns a tree rooted at n, induced by following the children all the
+// way down to the leaves. The tree nodes are guaranteed to only have one
+// parent.
+func (n *Node) Tree() *Node {
+	root := n.DeepCopy()
+	root.parents = nil
+	root.TraverseDescendants(func(current *Node, _ func()) {
+		for _, child := range current.children {
+			child.parents = []*Node{current}
+		}
+	})
+	return root
+}
+
 // Copy returns a shallow, unlinked copy of the node.
 func (n *Node) Copy() *Node {
 	return &Node{
