@@ -206,3 +206,33 @@ func TestTree(t *testing.T) {
 		t.Errorf("invalid tree nodes: want %s, got %s", want, got)
 	}
 }
+
+func TestTreeString(t *testing.T) {
+	want := `
+[ ] test (1)
+ ├──[ ] test (2)
+ │   └──[ ] test (3)
+ └──[ ] test (4)
+     ├──[ ] test (5)
+     └──[ ] test (6)`
+
+	want = strings.TrimSpace(want)
+
+	var nodes []*Node
+	for i := 0; i < 6; i++ {
+		nodes = append(nodes, newTestNode(int64(i+1)))
+	}
+
+	linkOrFail(t, nodes[0], nodes[1])
+	linkOrFail(t, nodes[1], nodes[2])
+	linkOrFail(t, nodes[0], nodes[3])
+	linkOrFail(t, nodes[3], nodes[4])
+	linkOrFail(t, nodes[3], nodes[5])
+
+	got := strings.TrimSpace(nodes[0].StringTree())
+
+	if want != got {
+		t.Errorf("invalid string representation of a tree\n\n"+
+			"want:\n\n%s\n\ngot:\n\n%s\n\n", want, got)
+	}
+}

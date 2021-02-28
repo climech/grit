@@ -51,7 +51,31 @@ func (n *Node) String() string {
 	return fmt.Sprintf("%s %s %s", accent(n.checkbox()), name, accent(id))
 }
 
-// StringTree returns a string representation of a tree rooted at node.
+type treeIndent int
+
+const (
+	treeIndentBlank = iota
+	treeIndentExtend
+	treeIndentSplit
+	treeIndentTerminate
+)
+
+func (i treeIndent) String() string {
+	switch i {
+	case treeIndentBlank:
+		return "    "
+	case treeIndentExtend:
+		return " │  "
+	case treeIndentSplit:
+		return " ├──"
+	case treeIndentTerminate:
+		return " └──"
+	default:
+		panic("invalid treeIndent value")
+	}
+}
+
+// StringTree returns a string representation of a tree rooted at n.
 //
 //     [~] Clean up the house (234)
 //      ├──[~] Clean up the bedroom (235)
@@ -62,41 +86,49 @@ func (n *Node) String() string {
 //      └──[ ] ...
 //
 func (n *Node) StringTree() string {
-	var output string
+	var sb strings.Builder
 	var traverse func(*Node, []bool)
 
-	// cont determines if the line should be continued for each of the current
-	// indent levels.
-	traverse = func(n *Node, cont []bool) {
-		var indent string
-		if len(cont) > 0 {
-			for _, cont := range cont[:len(cont)-1] {
-				if cont {
-					indent += " │  "
+	// The stack holds a boolean value for each of the node's indent levels. If
+	// the value is true, there are more siblings to come on that level, and the
+	// line should be extended or "split". Otherwise, the line should be
+	// terminated or left blank.
+	traverse = func(n *Node, stack []bool) {
+		var indents []treeIndent
+
+		if len(stack) != 0 {
+			// Previous levels -- extend or leave blank.
+			for _, v := range stack[:len(stack)-1] {
+				if v {
+					indents = append(indents, treeIndentExtend)
 				} else {
-					indent += "    "
+					indents = append(indents, treeIndentBlank)
 				}
 			}
-			if cont[len(cont)-1] {
-				indent += " ├──"
+			// Current level -- split or terminate.
+			if stack[len(stack)-1] {
+				indents = append(indents, treeIndentSplit)
 			} else {
-				indent += " └──"
+				indents = append(indents, treeIndentTerminate)
 			}
 		}
 
-		output += fmt.Sprintf("%s%s\n", indent, n)
+		for _, i := range indents {
+			sb.WriteString(i.String())
+		}
+		sb.WriteString(n.String())
+		sb.WriteString("\n")
 
-		for i, c := range n.children {
-			if i != len(n.children)-1 {
-				traverse(c, append(cont, true))
-			} else {
-				traverse(c, append(cont, false))
+		if len(n.children) != 0 {
+			for _, c := range n.children[:len(n.children)-1] {
+				traverse(c, append(stack, true))
 			}
+			traverse(n.children[len(n.children)-1], append(stack, false))
 		}
 	}
 
 	traverse(n, []bool{})
-	return output
+	return sb.String()
 }
 
 // StringNeighbors returns a string representation of the node's neighborhood,
