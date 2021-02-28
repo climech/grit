@@ -46,16 +46,3 @@ func longestStringRuneCount(slice []string) int {
 	}
 	return max
 }
-
-func nodesOverlap(nodesA, nodesB []*Node) bool {
-	idsA := make(map[int64]struct{})
-	for _, a := range nodesA {
-		idsA[a.ID] = struct{}{}
-	}
-	for _, b := range nodesB {
-		if _, ok := idsA[b.ID]; ok {
-			return true
-		}
-	}
-	return false
-}

@@ -315,25 +315,17 @@ func validateNewLink(origin, dest *Node) error {
 		return fmt.Errorf("cannot unroot date node")
 	}
 
-	// The nodes cannot belong to the same multitree. This ensures that no cycles
-	// or diamonds are introduced into the digraph.
-	if nodesOverlap(origin.All(), dest.All()) {
-		return fmt.Errorf("nodes belong to the same multitree")
+	parent := origin.DeepCopy()
+	child := dest.DeepCopy()
+	parent.children = append(parent.children, child)
+	child.parents = append(child.parents, parent)
+
+	if parent.hasBackEdge() {
+		return fmt.Errorf("cycles are not allowed")
 	}
-
-	/*
-		parent := origin.Copy()
-		child := dest.Copy()
-		parent.children = append(parent.children, child)
-		child.parents = append(child.parents, parent)
-
-		if parent.hasBackEdge() {
-			return fmt.Errorf("cycles are not allowed")
-		}
-		if parent.hasDiamond() {
-			return fmt.Errorf("diamonds are not allowed")
-		}
-	*/
+	if parent.hasDiamond() {
+		return fmt.Errorf("diamonds are not allowed")
+	}
 
 	return nil
 }
