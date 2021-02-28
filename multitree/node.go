@@ -143,6 +143,14 @@ func (n *Node) IsLeaf() bool {
 	return len(n.children) == 0
 }
 
+func (n *Node) HasChildren() bool {
+	return len(n.children) != 0
+}
+
+func (n *Node) HasParents() bool {
+	return len(n.parents) != 0
+}
+
 func (n *Node) Leaves() []*Node {
 	var leaves []*Node
 	n.TraverseDescendants(func(current *Node, _ func()) {
