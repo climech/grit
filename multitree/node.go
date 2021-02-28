@@ -107,7 +107,7 @@ func (n *Node) All() []*Node {
 			nodes = append(nodes, cur)
 		}
 	})
-	sortNodesByID(nodes)
+	SortNodesByID(nodes)
 	return nodes
 }
 
@@ -120,7 +120,7 @@ func (n *Node) Roots() []*Node {
 			roots = append(roots, current)
 		}
 	})
-	sortNodesByID(roots)
+	SortNodesByID(roots)
 	return roots
 }
 
@@ -133,7 +133,7 @@ func (n *Node) RootsAll() []*Node {
 			roots = append(roots, node)
 		}
 	}
-	sortNodesByID(roots)
+	SortNodesByID(roots)
 	return roots
 }
 
@@ -158,7 +158,7 @@ func (n *Node) Leaves() []*Node {
 			leaves = append(leaves, current)
 		}
 	})
-	sortNodesByID(leaves)
+	SortNodesByID(leaves)
 	return leaves
 }
 
@@ -171,7 +171,7 @@ func (n *Node) LeavesAll() []*Node {
 			leaves = append(leaves, node)
 		}
 	}
-	sortNodesByID(leaves)
+	SortNodesByID(leaves)
 	return leaves
 }
 
