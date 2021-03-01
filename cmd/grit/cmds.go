@@ -482,8 +482,8 @@ func cmdStat(cmd *cli.Cmd) {
 		fmt.Printf("ID: %d\n", node.ID)
 		fmt.Printf("Name: %s\n", name)
 		fmt.Printf("Status: %s\n", status)
-		fmt.Printf("Predecessors: %d\n", len(parents))
-		fmt.Printf("Successors: %d\n", len(children))
+		fmt.Printf("Parents: %d\n", len(parents))
+		fmt.Printf("Children: %d\n", len(children))
 
 		if node.Alias != "" {
 			fmt.Printf("Alias: %s\n", node.Alias)
