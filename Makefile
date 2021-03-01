@@ -1,5 +1,5 @@
 APPNAME = grit
-VERSION = $(shell git describe --long --always --dirty 2>/dev/null || echo -n 'v0.1.0')
+VERSION = $(shell git describe --long --always --dirty 2>/dev/null || echo -n 'v0.1.1')
 GOCMD = go
 GOPATH ?= $(shell mktemp -d)
 GOMODULE = github.com/climech/grit
