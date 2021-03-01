@@ -79,6 +79,10 @@ func cmdTree(cmd *cli.Cmd) {
 		if node == nil {
 			die("Node does not exist")
 		}
+
+		node.TraverseDescendants(func(current *multitree.Node, _ func()) {
+			multitree.SortNodesByName(current.Children())
+		})
 		fmt.Print(node.StringTree())
 	}
 }
@@ -124,6 +128,7 @@ func cmdList(cmd *cli.Cmd) {
 			nodes = node.Children()
 		}
 
+		multitree.SortNodesByName(nodes)
 		for _, n := range nodes {
 			fmt.Println(n)
 		}
