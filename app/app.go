@@ -3,7 +3,6 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"github.com/climech/grit/db"
 	"github.com/climech/grit/multitree"
 
+	"github.com/kirsle/configdir"
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
@@ -24,22 +24,16 @@ var (
 
 type App struct {
 	Database *db.Database
-	// TODO: add config
 }
 
 func New() (*App, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't load user's home directory")
+	configPath := configdir.LocalConfig(AppName)
+	if err := configdir.MakePath(configPath); err != nil {
+		return nil, err
 	}
 
-	dirpath := path.Join(home, ".config", AppName)
-	filepath := path.Join(dirpath, "graph.db")
-	if err := os.MkdirAll(dirpath, 0700); err != nil {
-		return nil, fmt.Errorf("couldn't create config directory")
-	}
-
-	d, err := db.New(filepath)
+	dbPath := path.Join(configPath, "graph.db")
+	d, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize db: %v", err)
 	}
