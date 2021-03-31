@@ -14,7 +14,7 @@ all: build
 build:
 	@$(GOCMD) build -v \
 		-o "$(BUILDDIR)/$(APPNAME)" \
-		-ldflags "-X '$(GOMODULE)/app.Version=$(VERSION)'" \
+		-ldflags "-s -w -X '$(GOMODULE)/app.Version=$(VERSION)'" \
 		"$(CWD)/cmd/$(APPNAME)"
 
 install: grit
