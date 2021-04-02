@@ -28,7 +28,7 @@ Grit is an experimental personal task manager that represents tasks as nodes of 
 
 ## Build instructions ##
 
-Make sure `go` and `gcc` are installed on your system. Get the [latest release](https://github.com/climech/grit/releases), and run:
+Make sure `go` (>=1.14) and `gcc` are installed on your system. Get the [latest release](https://github.com/climech/grit/releases), and run:
 
 ```
 $ make && sudo make install
