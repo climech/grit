@@ -2,6 +2,10 @@
 
 Grit is an experimental personal task manager that represents tasks as nodes of a [multitree](https://en.wikipedia.org/wiki/Multitree), a class of [directed acyclic graphs](https://en.wikipedia.org/wiki/Directed_acyclic_graph). The structure enables the subdivision of tasks, and supports short-term as well as long-term planning.
 
+<p align="center">
+  <img src="docs/assets/demo.gif" width="683" />
+</p>
+
 ## Contents
 
 * [Build instructions](#build-instructions)
