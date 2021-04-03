@@ -18,8 +18,8 @@ $(APPNAME):
 		"$(CWD)/cmd/$(APPNAME)"
 
 install: $(APPNAME)
-	@mkdir -p $(DESTDIR)$(BINDIR)
-	@install -v -t $(DESTDIR)$(BINDIR) $(APPNAME)
+	@mkdir -p "$(DESTDIR)$(BINDIR)"
+	@install -cv "$(APPNAME)" "$(DESTDIR)$(BINDIR)"
 
 test:
 	@$(GOCMD) test -count=1 ./...
