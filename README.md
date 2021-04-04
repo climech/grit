@@ -28,11 +28,24 @@ Grit is an experimental personal task manager that represents tasks as nodes of 
 
 ## Build instructions ##
 
+### Standard way ###
+
 Make sure `go` (>=1.14) and `gcc` are installed on your system. Get the [latest release](https://github.com/climech/grit/releases), and run:
 
 ```
 $ make && sudo make install
 ```
+
+### Docker ###
+
+If you don't want to install `go` or `gcc` but at ease with docker, you can build the docker image and make an alias:
+
+```bash
+$ docker build -t grit .
+$ alias grit='docker run --rm -it -u $(id -u):$(id -g) -v "$HOME/.config/grit":"/root/.config/grit" grit'
+```
+
+For permanent alias, put the last line in your `~/.bashrc` file.
 
 ## Introduction ##
 
