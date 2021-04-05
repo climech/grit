@@ -236,3 +236,63 @@ func TestTreeString(t *testing.T) {
 			"want:\n\n%s\n\ngot:\n\n%s\n\n", want, got)
 	}
 }
+
+func TestImportTrees(t *testing.T) {
+	want := []string{
+		`[ ] test (1)`,
+		strings.TrimSpace(`
+[ ] test (1)
+ ├──[ ] test (2)
+ │   └──[ ] test (3)
+ └──[ ] test (4)
+     ├──[ ] test (5)
+     └──[ ] test (6)`),
+	}
+	wantString := strings.Join(want, "\n")
+
+	testStringInput := func(input string) {
+		roots, err := ImportTrees(strings.NewReader(input))
+		if err != nil {
+			t.Errorf("error importing trees: %v", err)
+			return
+		}
+
+		if len(roots) != len(want) {
+			t.Errorf("want %d trees, imported %d", len(want), len(roots))
+		}
+
+		var gotString string
+		for _, r := range roots {
+			gotString += r.StringTree()
+		}
+
+		if strings.TrimSpace(gotString) != wantString {
+			t.Errorf("\n\nwant:\n\n%s\n\ngot:\n\n%s\n\n", wantString, gotString)
+		}
+	}
+
+	inputTabs := `
+test
+test
+	test
+			test
+
+	test
+		test
+		test`
+
+	inputSpaces := `
+test
+test
+    test
+            test
+
+    test
+        test
+        test`
+
+	testStringInput(inputTabs)
+	testStringInput(inputSpaces)
+
+	// TODO: mixing tabs and spaces should return an error.
+}
