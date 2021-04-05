@@ -6,9 +6,9 @@ import (
 	"io"
 )
 
-// ImportNodes reads a sequence of tab-indented lines and builds trees out of
+// ImportTrees reads a sequence of tab-indented lines and builds trees out of
 // them. It returns pointers to the roots.
-func ImportNodes(reader io.Reader) ([]*Node, error) {
+func ImportTrees(reader io.Reader) ([]*Node, error) {
 	type stackItem struct {
 		indent int
 		node   *Node

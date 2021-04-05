@@ -397,7 +397,7 @@ func cmdImport(cmd *cli.Cmd) {
 			reader = f
 		}
 
-		roots, err := multitree.ImportNodes(reader)
+		roots, err := multitree.ImportTrees(reader)
 		if err != nil {
 			dief("Import error: %v", err)
 		}
