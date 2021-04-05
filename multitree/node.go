@@ -24,9 +24,16 @@ func NewNode(name string) *Node {
 	return &Node{Name: name}
 }
 
+// nextID returns one more than the highest ID in the
+// multitree.
 func (n *Node) nextID() int64 {
-	all := n.All()
-	return all[len(all)-1].ID + 1
+	var max int64
+	for _, node := range n.All() {
+		if node.ID > max {
+			max = node.ID
+		}
+	}
+	return max + 1
 }
 
 // New creates a new node with the ID set to 1 more than the highest ID in the
