@@ -51,29 +51,12 @@ func (n *Node) String() string {
 	return fmt.Sprintf("%s %s %s", accent(n.checkbox()), name, accent(id))
 }
 
-type treeIndent int
-
 const (
-	treeIndentBlank = iota
-	treeIndentExtend
-	treeIndentSplit
-	treeIndentTerminate
+	treeIndentBlank     = "    "
+	treeIndentExtend    = " │  "
+	treeIndentSplit     = " ├──"
+	treeIndentTerminate = " └──"
 )
-
-func (i treeIndent) String() string {
-	switch i {
-	case treeIndentBlank:
-		return "    "
-	case treeIndentExtend:
-		return " │  "
-	case treeIndentSplit:
-		return " ├──"
-	case treeIndentTerminate:
-		return " └──"
-	default:
-		panic("invalid treeIndent value")
-	}
-}
 
 // StringTree returns a string representation of a tree rooted at n.
 //
@@ -94,7 +77,7 @@ func (n *Node) StringTree() string {
 	// line should be extended or "split". Otherwise, the line should be
 	// terminated or left blank.
 	traverse = func(n *Node, stack []bool) {
-		var indents []treeIndent
+		var indents []string
 
 		if len(stack) != 0 {
 			// Previous levels -- extend or leave blank.
@@ -111,10 +94,15 @@ func (n *Node) StringTree() string {
 			} else {
 				indents = append(indents, treeIndentTerminate)
 			}
+			// Change to "dotted line" if node has multiple parents.
+			if len(n.parents) > 1 {
+				i := len(indents) - 1
+				indents[i] = string([]rune(indents[i])[:2]) + "··"
+			}
 		}
 
 		for _, i := range indents {
-			sb.WriteString(i.String())
+			sb.WriteString(i)
 		}
 		sb.WriteString(n.String())
 		sb.WriteString("\n")
