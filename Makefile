@@ -9,9 +9,9 @@ BINDIR ?= $(PREFIX)/bin
 BUILDDIR ?= .
 BASHCOMPDIR ?= $(PREFIX)/share/bash-completion/completions
 
-all: $(APPNAME)
+all: build
 
-$(APPNAME):
+build:
 	@$(GOCMD) build -v \
 		-o "$(BUILDDIR)/$(APPNAME)" \
 		-ldflags "-s -w -X '$(GOMODULE)/app.Version=$(VERSION)'" \
@@ -27,4 +27,4 @@ test:
 clean:
 	@rm -f $(APPNAME)
 
-.PHONY: test clean
+.PHONY: build test clean
