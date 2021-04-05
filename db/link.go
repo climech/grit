@@ -43,15 +43,22 @@ func insertLink(tx *sql.Tx, originID, destID int64) (int64, error) {
 }
 
 func createLink(tx *sql.Tx, originID, destID int64) (int64, error) {
-	// Validate link.
 	origin, err := getGraph(tx, originID)
 	if err != nil {
 		return 0, err
 	}
+	if origin == nil {
+		return 0, fmt.Errorf("link origin does not exist")
+	}
+
 	dest, err := getGraph(tx, destID)
 	if err != nil {
 		return 0, err
 	}
+	if dest == nil {
+		return 0, fmt.Errorf("link target does not exist")
+	}
+
 	if err := multitree.LinkNodes(origin, dest); err != nil {
 		return 0, err
 	}
