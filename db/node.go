@@ -211,7 +211,7 @@ func createTree(tx *sql.Tx, node *multitree.Node, parentID int64) (int64, error)
 	var retErr error
 
 	tree.TraverseDescendants(func(current *multitree.Node, stop func()) {
-		var pid int64
+		pid := parentID
 		parents := current.Parents()
 		if len(parents) > 0 {
 			pid = parents[0].ID
@@ -228,6 +228,18 @@ func createTree(tx *sql.Tx, node *multitree.Node, parentID int64) (int64, error)
 	if retErr != nil {
 		return 0, retErr
 	}
+
+	// Update ancestors, if any.
+	if parentID != 0 {
+		g, err := getGraph(tx, tree.ID)
+		if err != nil {
+			return 0, err
+		}
+		if err := backpropCompletion(tx, g); err != nil {
+			return 0, err
+		}
+	}
+
 	return tree.ID, nil
 }
 

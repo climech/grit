@@ -20,8 +20,15 @@ func ImportNodes(reader io.Reader) ([]*Node, error) {
 	lineNum := 1
 
 	for scanner.Scan() {
-		indent, name, err := parseImportLine(scanner.Text())
-		if err != nil {
+		indent, name := parseImportLine(scanner.Text())
+
+		// Ignore empty lines.
+		if name == "" {
+			lineNum++
+			continue
+		}
+
+		if err := ValidateNodeName(name); err != nil {
 			return nil, fmt.Errorf("line %d: %v", lineNum, err)
 		}
 
@@ -37,12 +44,14 @@ func ImportNodes(reader io.Reader) ([]*Node, error) {
 		var newNode *Node
 		if len(stack) == 0 {
 			newNode = NewNode(name)
+			newNode.ID = 1
 			roots = append(roots, newNode)
 		} else {
 			topNode := stack[len(stack)-1].node
 			newNode = topNode.New(name)
 			_ = LinkNodes(topNode, newNode)
 		}
+
 		stack = append(stack, &stackItem{indent: indent, node: newNode})
 		lineNum++
 	}
@@ -50,15 +59,14 @@ func ImportNodes(reader io.Reader) ([]*Node, error) {
 	return roots, nil
 }
 
-func parseImportLine(line string) (int, string, error) {
-	var indent, i int
-	for i < len(line) && line[i] == '\t' {
+// parseImportLine returns the node's indent level and name.
+func parseImportLine(line string) (int, string) {
+	if len(line) == 0 {
+		return 0, ""
+	}
+	var indent int
+	for i := 0; i < len(line) && (line[i] == '\t' || line[i] == ' '); i++ {
 		indent++
-		i++
 	}
-	name := line[indent:]
-	if err := ValidateNodeName(name); err != nil {
-		return 0, "", err
-	}
-	return indent, name, nil
+	return indent, line[indent:]
 }

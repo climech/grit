@@ -95,29 +95,56 @@ func (a *App) AddChild(name string, parent interface{}) (*multitree.Node, error)
 	return a.Database.GetGraph(nodeID)
 }
 
-func (a *App) AddTree(node *multitree.Node, parent interface{}) (int64, error) {
-	for _, n := range node.All() {
+func validateTree(root *multitree.Node) error {
+	for _, n := range root.All() {
 		if err := multitree.ValidateNodeName(n.Name); err != nil {
-			return 0, NewError(ErrInvalidName, err.Error())
+			return NewError(ErrInvalidName, err.Error())
 		}
 		if err := multitree.ValidateDateNodeName(n.Name); err == nil {
-			return 0, NewError(ErrInvalidName,
+			return NewError(ErrInvalidName,
 				fmt.Sprintf("%v is a reserved name", n.Name))
 		}
 	}
+	return nil
+}
+
+// AddRootTree creates a new tree at the root level. It returns the root ID.
+func (a *App) AddRootTree(tree *multitree.Node) (int64, error) {
+	if err := validateTree(tree); err != nil {
+		return 0, err
+	}
+	return a.Database.CreateTree(tree, 0)
+}
+
+// AddChildTree creates a new tree and links parent to its root. It returns the
+// root ID.
+func (a *App) AddChildTree(tree *multitree.Node, parent interface{}) (int64, error) {
+	if err := validateTree(tree); err != nil {
+		return 0, err
+	}
+
 	parentID, err := a.selectorToID(parent)
 	if err != nil {
 		return 0, NewError(ErrInvalidSelector, err.Error())
 	}
-	id, err := a.Database.CreateTree(node, parentID)
-	if err != nil {
-		e, ok := err.(sqlite.Error)
-		if ok && e.ExtendedCode == sqlite.ErrConstraintForeignKey {
-			return 0, NewError(ErrNotFound, "parent does not exist")
-		}
-		return 0, err
+
+	var rootID int64
+	var createErr error
+	if parentID == 0 {
+		rootID, createErr = a.Database.CreateTreeAsChildOfDateNode(parent.(string), tree)
+	} else {
+		rootID, createErr = a.Database.CreateTree(tree, parentID)
 	}
-	return id, nil
+
+	if createErr != nil {
+		if e, ok := createErr.(sqlite.Error); ok && e.ExtendedCode == sqlite.ErrConstraintForeignKey {
+			return 0, NewError(ErrNotFound, "parent does not exist")
+		} else {
+			return 0, createErr
+		}
+	}
+
+	return rootID, nil
 }
 
 func (a *App) RenameNode(selector interface{}, name string) error {

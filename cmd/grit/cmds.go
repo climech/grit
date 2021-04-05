@@ -369,6 +369,7 @@ func cmdRemove(cmd *cli.Cmd) {
 func cmdImport(cmd *cli.Cmd) {
 	cmd.Spec = "[ -p=<predecessor> | -r ] [FILENAME]"
 	today := time.Now().Format("2006-01-02")
+
 	var (
 		filename = cmd.StringArg("FILENAME", "",
 			"file containing tab-indented lines")
@@ -376,6 +377,7 @@ func cmdImport(cmd *cli.Cmd) {
 			"predecessor for the tree root(s)")
 		makeRoot = cmd.BoolOpt("r root", false, "create top-level tree(s)")
 	)
+
 	cmd.Action = func() {
 		a, err := app.New()
 		if err != nil {
@@ -407,9 +409,9 @@ func cmdImport(cmd *cli.Cmd) {
 			var id int64
 			var err error
 			if *makeRoot {
-				id, err = a.AddTree(root, 0)
+				id, err = a.AddRootTree(root)
 			} else {
-				id, err = a.AddTree(root, *predecessor)
+				id, err = a.AddChildTree(root, *predecessor)
 			}
 			if err != nil {
 				e := fmt.Errorf("Couldn't import tree: %v", err)
