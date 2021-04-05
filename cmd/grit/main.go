@@ -24,7 +24,7 @@ func main() {
 	c.Command("list-dates lsd", "List all date nodes", cmdListDates)
 	c.Command("rename", "Rename a node", cmdRename)
 	c.Command("remove rm", "Remove node(s)", cmdRemove)
-	c.Command("import", "Import nodes from tab-indented lines", cmdImport)
+	c.Command("import", "Import trees from indented lines", cmdImport)
 	c.Command("stat", "Display node information", cmdStat)
 
 	args := os.Args
