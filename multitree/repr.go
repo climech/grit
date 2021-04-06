@@ -71,6 +71,7 @@ const (
 func (n *Node) StringTree() string {
 	var sb strings.Builder
 	var traverse func(*Node, []bool)
+	viewRoot := n.Tree().Roots()[0]
 
 	// The stack holds a boolean value for each of the node's indent levels. If
 	// the value is true, there are more siblings to come on that level, and the
@@ -104,7 +105,15 @@ func (n *Node) StringTree() string {
 		for _, i := range indents {
 			sb.WriteString(i)
 		}
-		sb.WriteString(n.String())
+
+		// Change "[x]" to "[*]" when current view date != node's completion date.
+		// TODO: make start of day configurable.
+		nodeStr := n.String()
+		if viewRoot.IsDateNode() && !n.IsCompletedOnDate(viewRoot.Name, 4) {
+			nodeStr = strings.Replace(nodeStr, "[x]", "[*]", 1)
+		}
+
+		sb.WriteString(nodeStr)
 		sb.WriteString("\n")
 
 		if len(n.children) != 0 {

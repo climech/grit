@@ -1,6 +1,9 @@
 package multitree
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Node struct {
 	ID   int64
@@ -46,6 +49,28 @@ func (n *Node) IsCompleted() bool {
 	return n.Completed != nil
 }
 
+// IsCompletedOnDate returns true if n was completed on date given as a string
+// in the format "YYYY-MM-DD". The start of day is determined by offset, e.g. if
+// offset is 4, the day starts at 4 A.M.
+func (n *Node) IsCompletedOnDate(date string, offset int) bool {
+	t := n.TimeCompleted()
+
+	if !t.IsZero() {
+		start, err := time.Parse("2006-01-02", date)
+		if err != nil {
+			panic(err)
+		}
+		start = start.Local().Add(time.Duration(offset) * time.Hour)
+		end := start.Add(24 * time.Hour)
+
+		if t.Equal(start) || (t.After(start) && t.Before(end)) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (n *Node) IsInProgress() bool {
 	if n.IsCompleted() {
 		return false
@@ -71,6 +96,15 @@ func (n *Node) IsDateNode() bool {
 		return true
 	}
 	return false
+}
+
+// TimeCompleted returns the task completion time as local time.Time.
+func (n *Node) TimeCompleted() time.Time {
+	var t time.Time
+	if n.Completed != nil {
+		t = time.Unix(*n.Completed, 0)
+	}
+	return t
 }
 
 func (n *Node) Children() []*Node {
