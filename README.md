@@ -79,9 +79,9 @@ We also get valid *inverted trees* by going in the opposite direction, from node
 
 At any given time, a Grit task is said to be in one of the three states:
 
-1. `[ ]` *inactive* — task is yet to be completed
-2. `[~]` *in progress* — some of the subtasks have been completed
-3. `[x]` *completed*
+1. `[ ]` — *inactive;* task is yet to be completed
+2. `[~]` — *in progress;* some of the subtasks have been completed
+3. `[x]` or `[*]` — *completed;* `[*]` is used when the task is viewed in the context of a date that is different from the task's completion date
 
 ### Date nodes
 
