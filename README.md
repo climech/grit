@@ -271,13 +271,13 @@ $ grit
 [~] 2020-11-10 (1)
  ├──[x] ...
  └──[ ] Work on ch. 1 of the Algebra textbook (75)
-     ├──[ ] Read the chapter (45)
-     ├──[ ] Solve ex. 1 (47)
-     ├──[ ] Solve ex. 2 (48)
-     └──[ ] Solve ex. 3 (49)
+     ├··[ ] Read the chapter (45)
+     ├··[ ] Solve ex. 1 (47)
+     ├··[ ] Solve ex. 2 (48)
+     └··[ ] Solve ex. 3 (49)
 ```
 
-Let's take a closer look at one of them:
+The dotted lines indicate that the node has multiple parents. We can confirm this by taking a closer look at one of them using `stat`:
 
 ```
 $ grit stat 45
@@ -292,9 +292,7 @@ Parents: 2
 Children: 0
 ```
 
-Two parents! Now we're really taking advantage of the multitree.
-
-If we wanted to draw an accurate representation of the whole multitree, it might look something like this:
+If we wanted to draw an accurate representation of the entire multitree at this point, it might look something like this:
 
 <p align="center">
   <img src="docs/assets/fig2.png" width="750" />
@@ -310,10 +308,10 @@ $ grit
 [x] 2020-11-10 (1)
  ├──[x] ...
  └──[x] Work on ch. 1 of the algebra textbook (75)
-     ├──[x] Read the chapter (45)
-     ├──[x] Solve ex. 1 (47)
-     ├──[x] Solve ex. 2 (48)
-     └──[x] Solve ex. 3 (49)
+     ├··[x] Read the chapter (45)
+     ├··[x] Solve ex. 1 (47)
+     ├··[x] Solve ex. 2 (48)
+     └··[x] Solve ex. 3 (49)
 ```
 
 The nodes are the same, so the change is visible in the textbook tree as well as the date tree:
@@ -322,11 +320,11 @@ The nodes are the same, so the change is visible in the textbook tree as well as
 $ grit tree textbook
 [~] Work through Higher Algebra - Henry S. Hall (9:textbook)
  ├──[~] Chapter 1 (10)
- │   ├──[x] Read the chapter (45)
+ │   ├··[x] Read the chapter (45)
  │   └──[~] Solve the exercises (46)
- │       ├──[x] Solve ex. 1 (47)
- │       ├──[x] Solve ex. 2 (48)
- │       ├──[x] Solve ex. 3 (49)
+ │       ├··[x] Solve ex. 1 (47)
+ │       ├··[x] Solve ex. 2 (48)
+ │       ├··[x] Solve ex. 3 (49)
  │       ├──[ ] Solve ex. 4 (50)
  │       ├──[ ] ...
  │       └──[ ] Solve ex. 28 (74)
@@ -349,16 +347,16 @@ $ grit tree 2020-11-11
 [x] 2020-11-10 (149)
  └──[ ] Work on the algebra textbook (150)
      ├──[ ] Solve exercises from ch. 1 (151)
-     │   ├──[ ] Solve ex. 4 (50)
-     │   ├──[ ] Solve ex. 5 (51)
-     │   ├──[ ] Solve ex. 6 (52)
-     │   ├──[ ] Solve ex. 7 (53)
-     │   └──[ ] Solve ex. 8 (54)
+     │   ├··[ ] Solve ex. 4 (50)
+     │   ├··[ ] Solve ex. 5 (51)
+     │   ├··[ ] Solve ex. 6 (52)
+     │   ├··[ ] Solve ex. 7 (53)
+     │   └··[ ] Solve ex. 8 (54)
      └──[ ] Work on ch. 2 (152)
-         ├──[ ] Read the chapter (76)
-         ├──[ ] Solve ex. 1 (78)
-         ├──[ ] Solve ex. 2 (79)
-         └──[ ] Solve ex. 3 (80)
+         ├··[ ] Read the chapter (76)
+         ├··[ ] Solve ex. 1 (78)
+         ├··[ ] Solve ex. 2 (79)
+         └··[ ] Solve ex. 3 (80)
 ```
 
 ### Pointers ###
