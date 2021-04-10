@@ -8,7 +8,9 @@ Grit is an experimental personal task manager that represents tasks as nodes of 
 
 ## Contents
 
-* [Build instructions](#build-instructions)
+* [Installation](#installation)
+  * [From Source](#from-source)
+  * [External Repositories](#external-repositories)
 * [Introduction](#introduction)
   * [Trees](#trees)
   * [Multitrees](#multitrees)
@@ -26,12 +28,22 @@ Grit is an experimental personal task manager that represents tasks as nodes of 
 * [License](#license)
 
 
-## Build instructions ##
+## Installation ##
+
+### From Source ###
 
 Make sure `go` (>=1.14) and `gcc` are installed on your system. Get the [latest release](https://github.com/climech/grit/releases), and run:
 
 ```
 $ make && sudo make install
+```
+
+### External Repositories ###
+
+On macOS, you can install `grit` via [MacPorts](https://www.macports.org)
+```
+sudo port selfupdate
+sudo port install grit
 ```
 
 ## Introduction ##
