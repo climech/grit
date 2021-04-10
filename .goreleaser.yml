@@ -1,0 +1,126 @@
+project_name: grit
+
+builds:
+  - id: darwin-amd64
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    env:
+      - CC=o64-clang
+    ldflags:
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+  - id: darwin-arm64
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    env:
+      - CC=oa64-clang
+    ldflags:
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+  - id: linux-amd64
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CC=gcc
+    ldflags:
+      - -linkmode external -extldflags '-static'
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+  - id: linux-arm64
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - linux
+    goarch:
+      - arm64
+    env:
+      - CC=aarch64-linux-gnu-gcc
+    ldflags:
+      - -linkmode external -extldflags '-static'
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+  - id: linux-armhf
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - 6
+      - 7
+    env:
+      - CC=arm-linux-gnueabihf-gcc
+    ldflags:
+      - -linkmode external -extldflags '-static'
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+  - id: windows-amd64
+    main: ./cmd/grit
+    binary: "{{.ProjectName}}"
+    goos:
+      - windows
+    goarch:
+      - amd64
+    env:
+      - CC=x86_64-w64-mingw32-gcc
+    ldflags:
+      - -s -w -X github.com/climech/grit/app.Version=v{{.Version}}
+
+archives:
+  - id: grit
+    builds:
+      - darwin-amd64
+      - darwin-arm64
+      - linux-amd64
+      - linux-arm64
+      - linux-armhf
+      - windows-amd64
+    name_template: "{{.ProjectName}}_v{{.Version}}_{{.Os}}_{{.Arch}}{{.Arm}}"
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+    files:
+      - README*
+      - LICENSE*
+      - docs/*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+
+brews:
+  - tap:
+      owner: climech
+      name: homebrew-repo
+    folder: Formula
+    homepage: "https://github.com/climech/grit"
+    description: "Multitree-based personal task manager"
+    license: MIT
+    skip_upload: true
+
+snapshot:
+  name_template: "{{.Version}}-SNAPSHOT-{{.ShortCommit}}"
+
+release:
+  github:
+    owner: climech
+    name: grit
+  prerelease: auto
+  draft: true

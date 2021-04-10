@@ -1,1 +1,3 @@
 /grit
+/dist/
+/.release-env
