@@ -23,7 +23,7 @@ Grit is an experimental personal task manager that represents tasks as nodes of 
   * [Links](#links)
   * [Pointers](#pointers)
     * [Organizing tasks](#organizing-tasks)
-    * [A reading challenge](#a-reading-challenge)
+    * [Reading challenge](#reading-challenge)
   * [More information](#more-information)
 * [License](#license)
 
