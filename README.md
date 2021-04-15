@@ -41,6 +41,7 @@ $ make && sudo make install
 ### External repositories ###
 
 * [Arch Linux (AUR)](https://aur.archlinux.org/packages/grit-task-manager/) ([@adityasaky](https://github.com/adityasaky))
+* [Nix (nixpkgs-unstable)](https://search.nixos.org/packages?channel=unstable&show=grit&from=0&size=50&sort=relevance&query=grit) ([@IvarWithoutBones](https://github.com/ivarWithoutBones))
 * [macOS via MacPorts](https://ports.macports.org/port/grit/summary) ([@herbygillot](https://github.com/herbygillot))
 
 
