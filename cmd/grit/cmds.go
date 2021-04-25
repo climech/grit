@@ -107,7 +107,9 @@ func cmdTree(cmd *cli.Cmd) {
 func cmdList(cmd *cli.Cmd) {
 	cmd.Spec = "[NODE]"
 	var (
-		selector = cmd.StringArg("NODE", "", "node selector")
+		selector = cmd.StringArg("NODE", "",
+		"node selector. \"all\" will list all existing nodes, root nodes are marked" +
+		" by *")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -134,6 +136,22 @@ func cmdList(cmd *cli.Cmd) {
 				}
 				nodes = append(nodes, n)
 			}
+		} else if *selector == "all" {
+			roots, err := a.GetRoots()
+			if err != nil {
+				die(err)
+			}
+			for _, r := range roots {
+				n, err := a.GetGraph(r.ID)
+				if err != nil {
+					die(err)
+				}
+				if n == nil {
+					continue
+				}
+				nodes = append(nodes, n)
+				nodes = append(nodes, n.Children()...)
+			}
 		} else {
 			node, err := a.GetGraph(*selector)
 			if err != nil {
@@ -147,7 +165,11 @@ func cmdList(cmd *cli.Cmd) {
 
 		multitree.SortNodesByName(nodes)
 		for _, n := range nodes {
-			fmt.Println(n)
+			if n.IsRoot() {
+				fmt.Printf("%s*\n", n)
+			} else {
+				fmt.Println(n)
+			}
 		}
 	}
 }
