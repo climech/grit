@@ -20,6 +20,7 @@ func main() {
 	c.Command("uncheck", "Revert node status to inactive", cmdUncheck)
 	c.Command("link", "Create a link from one node to another", cmdLink)
 	c.Command("unlink", "Remove an existing link between two nodes", cmdUnlink)
+	c.Command("move", "Move a node from one parent to another", cmdMove)
 	c.Command("list ls", "List children of selected node", cmdList)
 	c.Command("list-dates lsd", "List all date nodes", cmdListDates)
 	c.Command("rename", "Rename a node", cmdRename)

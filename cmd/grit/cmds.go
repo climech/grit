@@ -538,3 +538,27 @@ func cmdStat(cmd *cli.Cmd) {
 
 	}
 }
+
+func cmdMove(cmd *cli.Cmd) {
+	cmd.Spec = "NODE ORIGIN TARGET"
+	var (
+		node = cmd.StringArg("NODE", "", "node selector")
+		origin = cmd.StringArg("ORIGIN", "", "origin selector")
+		target = cmd.StringArg("TARGET", "", "target selector")
+	)
+
+	cmd.Action = func() {
+		a, err := app.New()
+		if err != nil {
+			die(err)
+		}
+		defer a.Close()
+
+		if err := a.UnlinkNodes(*origin, *node); err != nil {
+			dief("Couldn't unlink nodes: %v\n", err)
+		}
+		if _, err := a.LinkNodes(*target, *node); err != nil {
+			dief("Couldn't link nodes: %v\n", err)
+		}
+	}
+}
