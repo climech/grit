@@ -16,7 +16,7 @@ import (
 )
 
 func cmdAdd(cmd *cli.Cmd) {
-	cmd.Spec = "[ -p=<predecessor> | -r ] NAME_PARTS..."
+	cmd.Spec = "[ -a=<alias> ] [ -p=<predecessor> | -r ] NAME_PARTS..."
 	today := time.Now().Format("2006-01-02")
 
 	var (
@@ -26,6 +26,8 @@ func cmdAdd(cmd *cli.Cmd) {
 			"predecessor to attach the node to")
 		makeRoot = cmd.BoolOpt("r root", false,
 			"create a root node")
+		alias = cmd.StringOpt("a alias", "",
+			"give the node an alias")
 	)
 
 	cmd.Action = func() {
@@ -37,14 +39,20 @@ func cmdAdd(cmd *cli.Cmd) {
 
 		name := strings.Join(*nameParts, " ")
 
+		var node *multitree.Node
 		if *makeRoot {
-			node, err := a.AddRoot(name)
+			node, err = a.AddRoot(name)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
 			color.Cyan("(%d)", node.ID)
+			if *alias != "" {
+				color.Cyan("(%d):%s\n", node.ID, *alias)
+			} else {
+				color.Cyan("(%d)", node.ID)
+			}
 		} else {
-			node, err := a.AddChild(name, *predecessor)
+			node, err = a.AddChild(name, *predecessor)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
@@ -54,7 +62,16 @@ func cmdAdd(cmd *cli.Cmd) {
 				accent = color.New(color.FgYellow).SprintFunc()
 			}
 			highlighted := accent(fmt.Sprintf("(%d)", node.ID))
-			fmt.Printf("(%d) -> %s\n", parents[0].ID, highlighted)
+			if *alias != "" {
+				fmt.Printf("(%d) -> %s:%s\n", parents[0].ID, highlighted, *alias)
+			} else {
+				fmt.Printf("(%d) -> %s\n", parents[0].ID, highlighted)
+			}
+		}
+
+		id := node.ID
+		if err := a.SetAlias(id, *alias); err != nil {
+			dief("Couldn't set alias: %v", err)
 		}
 	}
 }
