@@ -68,7 +68,7 @@ const (
 //      ├──[ ] Clean up the kitchen (239)
 //      └──[ ] ...
 //
-func (n *Node) StringTree() string {
+func (n *Node) StringTree(skipCompleted bool) string {
 	var sb strings.Builder
 	var traverse func(*Node, []bool)
 	viewRoot := n.Tree().Roots()[0]
@@ -79,6 +79,10 @@ func (n *Node) StringTree() string {
 	// terminated or left blank.
 	traverse = func(n *Node, stack []bool) {
 		var indents []string
+
+		if skipCompleted && n.IsCompleted() {
+			return
+		}
 
 		if len(stack) != 0 {
 			// Previous levels -- extend or leave blank.

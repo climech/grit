@@ -60,10 +60,11 @@ func cmdAdd(cmd *cli.Cmd) {
 }
 
 func cmdTree(cmd *cli.Cmd) {
-	cmd.Spec = "[NODE]"
-	today := time.Now().Format("2006-01-02")
+	cmd.Spec = "[-i] [-C] [NODE]"
 	var (
-		selector = cmd.StringArg("NODE", today, "node selector")
+		idsort    = cmd.BoolOpt("i id-sort", false, "sort by id instead of name")
+		nochecked = cmd.BoolOpt("C no-checked", false, "filter out checked nodes")
+		selector  = cmd.StringArg("NODE", "", "node selector")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -71,26 +72,58 @@ func cmdTree(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
+		var nodes []*multitree.Node
 
-		node, err := a.GetGraph(*selector)
-		if err != nil {
-			die(capitalize(err.Error()))
-		}
-		if node == nil {
-			die("Node does not exist")
+		if *selector == "" {
+			// List all dates by default.
+			dnodes, err := a.GetDateNodes()
+			if err != nil {
+				die(err)
+			}
+			for _, d := range dnodes {
+				// Get as part of multitree for accurate status.
+				n, err := a.GetGraph(d.ID)
+				if err != nil {
+					die(capitalize(err.Error()))
+				}
+				if n == nil {
+					continue
+				}
+				nodes = append(nodes, n)
+			}
+		} else {
+			n, err := a.GetGraph(*selector)
+			if err != nil {
+				die(capitalize(err.Error()))
+			}
+			if n == nil {
+				die("Node does not exist")
+			}
+			nodes = append(nodes, n)
 		}
 
-		node.TraverseDescendants(func(current *multitree.Node, _ func()) {
-			multitree.SortNodesByName(current.Children())
-		})
-		fmt.Print(node.StringTree())
+		for _, node := range nodes {
+			if *nochecked && !node.IsCompleted() {
+				fmt.Print(node.Name)
+			}
+			node.TraverseDescendants(func(current *multitree.Node, _ func()) {
+				if *idsort {
+					multitree.SortNodesByID(current.Children())
+				} else {
+					multitree.SortNodesByName(current.Children())
+				}
+			})
+			fmt.Print(node.StringTree(*nochecked))
+		}
 	}
 }
 
 func cmdList(cmd *cli.Cmd) {
-	cmd.Spec = "[NODE]"
+	cmd.Spec = "[-i] [-C] [NODE]"
 	var (
-		selector = cmd.StringArg("NODE", "", "node selector")
+		idsort    = cmd.BoolOpt("i id-sort", false, "sort by id instead of name")
+		nochecked = cmd.BoolOpt("C no-checked", false, "filter out checked nodes")
+		selector  = cmd.StringArg("NODE", "", "node selector")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -128,9 +161,15 @@ func cmdList(cmd *cli.Cmd) {
 			nodes = node.Children()
 		}
 
-		multitree.SortNodesByName(nodes)
+		if *idsort {
+			multitree.SortNodesByID(nodes)
+		} else {
+			multitree.SortNodesByName(nodes)
+		}
 		for _, n := range nodes {
-			fmt.Println(n)
+			if !*nochecked || !n.IsCompleted() {
+				fmt.Println(n)
+			}
 		}
 	}
 }
@@ -422,7 +461,7 @@ func cmdImport(cmd *cli.Cmd) {
 			if g, err := a.GetGraph(id); err != nil {
 				errs = append(errs, err)
 			} else {
-				fmt.Print(g.StringTree())
+				fmt.Print(g.StringTree(false))
 				treesTotal++
 				nodesTotal += len(g.Tree().All())
 			}
