@@ -234,10 +234,14 @@ func cmdLink(cmd *cli.Cmd) {
 }
 
 func cmdUnlink(cmd *cli.Cmd) {
-	cmd.Spec = "ORIGIN TARGET"
+	cmd.Spec = "ORIGIN ( -A | -P | TARGETS... )"
 	var (
 		origin = cmd.StringArg("ORIGIN", "", "origin selector")
-		target = cmd.StringArg("TARGET", "", "target selector")
+		targets = cmd.StringsArg("TARGETS", nil, "target selector")
+		allChildren = cmd.BoolOpt("A allChildren", false,
+			"unlink all children of the node")
+		allParents = cmd.BoolOpt("P allParents", false,
+		  "unlink all parent of the node, essentially making it a root node")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -246,8 +250,34 @@ func cmdUnlink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		if err := a.UnlinkNodes(*origin, *target); err != nil {
-			dief("Couldn't unlink nodes: %v\n", err)
+		originNode, err := a.GetGraph(*origin)
+		if err != nil {
+			die(err)
+		} else if originNode == nil {
+			die("Node does not exist")
+		}
+
+		var nodes []*multitree.Node
+		if *allChildren {
+			nodes = originNode.Children()
+			for _, n := range nodes {
+				if err := a.UnlinkNodes(*origin, n); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
+		} else if *allParents {
+			nodes = originNode.Parents()
+			for _, n := range nodes {
+				if err := a.UnlinkNodes(n, *origin); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
+		} else {
+			for _, t := range *targets {
+				if err := a.UnlinkNodes(*origin, t); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
 		}
 	}
 }
