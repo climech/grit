@@ -42,7 +42,7 @@ $ make && sudo make install
 
 * [Arch Linux (AUR)](https://aur.archlinux.org/packages/grit-task-manager/) ([@adityasaky](https://github.com/adityasaky))
 * [macOS via MacPorts](https://ports.macports.org/port/grit/summary) ([@herbygillot](https://github.com/herbygillot))
-
+* Gentoo Linux ([GURU](https://wiki.gentoo.org/wiki/Project:GURU)) ([@mjkalyan](https://github.com/mjkalyan)) - `emerge app-misc/grit::guru`
 
 ## Introduction ##
 
