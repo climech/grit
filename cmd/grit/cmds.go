@@ -215,7 +215,9 @@ func cmdUncheck(cmd *cli.Cmd) {
 func cmdLink(cmd *cli.Cmd) {
 	cmd.Spec = "ORIGIN TARGETS..."
 	var (
-		origin  = cmd.StringArg("ORIGIN", "", "origin selector")
+		origin  = cmd.StringArg("ORIGIN", "",
+														"origin selector. 'today' is a valid option and will" +
+														" create the node if it doesn't already exist")
 		targets = cmd.StringsArg("TARGETS", nil, "target selector(s)")
 	)
 	cmd.Action = func() {
@@ -224,6 +226,11 @@ func cmdLink(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
+
+		today := time.Now().Format("2006-01-02")
+		if *origin == "today" {
+			*origin = today
+		}
 
 		for _, t := range *targets {
 			if _, err := a.LinkNodes(*origin, t); err != nil {
@@ -236,7 +243,9 @@ func cmdLink(cmd *cli.Cmd) {
 func cmdUnlink(cmd *cli.Cmd) {
 	cmd.Spec = "ORIGIN ( -A | -P | TARGETS... )"
 	var (
-		origin = cmd.StringArg("ORIGIN", "", "origin selector")
+		origin  = cmd.StringArg("ORIGIN", "",
+														"origin selector. 'today' is a valid option and will" +
+														" create the node if it doesn't already exist")
 		targets = cmd.StringsArg("TARGETS", nil, "target selector")
 		allChildren = cmd.BoolOpt("A allChildren", false,
 			"unlink all children of the node")
@@ -249,6 +258,11 @@ func cmdUnlink(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
+
+		today := time.Now().Format("2006-01-02")
+		if *origin == "today" {
+			*origin = today
+		}
 
 		originNode, err := a.GetGraph(*origin)
 		if err != nil {

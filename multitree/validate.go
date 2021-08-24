@@ -13,7 +13,7 @@ func ValidateNodeName(name string) error {
 	if len(name) == 0 {
 		return errors.New("invalid node name (empty name)")
 	}
-	if len(name) > 100 {
+	if len(name) > 200 {
 		return errors.New("invalid node name (name too long)")
 	}
 	return nil
