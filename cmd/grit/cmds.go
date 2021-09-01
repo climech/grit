@@ -77,10 +77,11 @@ func cmdAdd(cmd *cli.Cmd) {
 }
 
 func cmdTree(cmd *cli.Cmd) {
-	cmd.Spec = "[NODE]"
+	cmd.Spec = "[ -u=<unfinished> ] [NODE]"
 	today := time.Now().Format("2006-01-02")
 	var (
 		selector = cmd.StringArg("NODE", today, "node selector")
+		unfinished = cmd.BoolOpt("u unfinished", false, "Show unfinished nodes first")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -97,8 +98,12 @@ func cmdTree(cmd *cli.Cmd) {
 			die("Node does not exist")
 		}
 
+		sortOrder := multitree.SortNodesByName
+		if *unfinished {
+			sortOrder = multitree.SortNodesByStatus
+		}
 		node.TraverseDescendants(func(current *multitree.Node, _ func()) {
-			multitree.SortNodesByName(current.Children())
+			sortOrder(current.Children())
 		})
 		fmt.Print(node.StringTree())
 	}
