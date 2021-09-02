@@ -16,7 +16,7 @@ import (
 )
 
 func cmdAdd(cmd *cli.Cmd) {
-	cmd.Spec = "[ -p=<predecessor> | -r ] NAME_PARTS..."
+	cmd.Spec = "[ -a=<alias> ] [ -p=<predecessor> | -r ] NAME_PARTS..."
 	today := time.Now().Format("2006-01-02")
 
 	var (
@@ -26,6 +26,8 @@ func cmdAdd(cmd *cli.Cmd) {
 			"predecessor to attach the node to")
 		makeRoot = cmd.BoolOpt("r root", false,
 			"create a root node")
+		alias = cmd.StringOpt("a alias", "",
+			"give the node an alias")
 	)
 
 	cmd.Action = func() {
@@ -37,14 +39,20 @@ func cmdAdd(cmd *cli.Cmd) {
 
 		name := strings.Join(*nameParts, " ")
 
+		var node *multitree.Node
 		if *makeRoot {
-			node, err := a.AddRoot(name)
+			node, err = a.AddRoot(name)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
 			color.Cyan("(%d)", node.ID)
+			if *alias != "" {
+				color.Cyan("(%d):%s\n", node.ID, *alias)
+			} else {
+				color.Cyan("(%d)", node.ID)
+			}
 		} else {
-			node, err := a.AddChild(name, *predecessor)
+			node, err = a.AddChild(name, *predecessor)
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
@@ -54,16 +62,26 @@ func cmdAdd(cmd *cli.Cmd) {
 				accent = color.New(color.FgYellow).SprintFunc()
 			}
 			highlighted := accent(fmt.Sprintf("(%d)", node.ID))
-			fmt.Printf("(%d) -> %s\n", parents[0].ID, highlighted)
+			if *alias != "" {
+				fmt.Printf("(%d) -> %s:%s\n", parents[0].ID, highlighted, *alias)
+			} else {
+				fmt.Printf("(%d) -> %s\n", parents[0].ID, highlighted)
+			}
+		}
+
+		id := node.ID
+		if err := a.SetAlias(id, *alias); err != nil {
+			dief("Couldn't set alias: %v", err)
 		}
 	}
 }
 
 func cmdTree(cmd *cli.Cmd) {
-	cmd.Spec = "[NODE]"
+	cmd.Spec = "[ -u=<unfinished> ] [NODE]"
 	today := time.Now().Format("2006-01-02")
 	var (
 		selector = cmd.StringArg("NODE", today, "node selector")
+		unfinished = cmd.BoolOpt("u unfinished", false, "Show unfinished nodes first")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -80,8 +98,12 @@ func cmdTree(cmd *cli.Cmd) {
 			die("Node does not exist")
 		}
 
+		sortOrder := multitree.SortNodesByName
+		if *unfinished {
+			sortOrder = multitree.SortNodesByStatus
+		}
 		node.TraverseDescendants(func(current *multitree.Node, _ func()) {
-			multitree.SortNodesByName(current.Children())
+			sortOrder(current.Children())
 		})
 		fmt.Print(node.StringTree())
 	}
@@ -90,7 +112,9 @@ func cmdTree(cmd *cli.Cmd) {
 func cmdList(cmd *cli.Cmd) {
 	cmd.Spec = "[NODE]"
 	var (
-		selector = cmd.StringArg("NODE", "", "node selector")
+		selector = cmd.StringArg("NODE", "",
+		"node selector. \"all\" will list all existing nodes, root nodes are marked" +
+		" by *")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -117,6 +141,22 @@ func cmdList(cmd *cli.Cmd) {
 				}
 				nodes = append(nodes, n)
 			}
+		} else if *selector == "all" {
+			roots, err := a.GetRoots()
+			if err != nil {
+				die(err)
+			}
+			for _, r := range roots {
+				n, err := a.GetGraph(r.ID)
+				if err != nil {
+					die(err)
+				}
+				if n == nil {
+					continue
+				}
+				nodes = append(nodes, n)
+				nodes = append(nodes, n.Children()...)
+			}
 		} else {
 			node, err := a.GetGraph(*selector)
 			if err != nil {
@@ -130,7 +170,11 @@ func cmdList(cmd *cli.Cmd) {
 
 		multitree.SortNodesByName(nodes)
 		for _, n := range nodes {
-			fmt.Println(n)
+			if n.IsRoot() {
+				fmt.Printf("%s*\n", n)
+			} else {
+				fmt.Println(n)
+			}
 		}
 	}
 }
@@ -176,7 +220,9 @@ func cmdUncheck(cmd *cli.Cmd) {
 func cmdLink(cmd *cli.Cmd) {
 	cmd.Spec = "ORIGIN TARGETS..."
 	var (
-		origin  = cmd.StringArg("ORIGIN", "", "origin selector")
+		origin  = cmd.StringArg("ORIGIN", "",
+														"origin selector. 'today' is a valid option and will" +
+														" create the node if it doesn't already exist")
 		targets = cmd.StringsArg("TARGETS", nil, "target selector(s)")
 	)
 	cmd.Action = func() {
@@ -185,6 +231,11 @@ func cmdLink(cmd *cli.Cmd) {
 			die(err)
 		}
 		defer a.Close()
+
+		today := time.Now().Format("2006-01-02")
+		if *origin == "today" {
+			*origin = today
+		}
 
 		for _, t := range *targets {
 			if _, err := a.LinkNodes(*origin, t); err != nil {
@@ -195,10 +246,16 @@ func cmdLink(cmd *cli.Cmd) {
 }
 
 func cmdUnlink(cmd *cli.Cmd) {
-	cmd.Spec = "ORIGIN TARGET"
+	cmd.Spec = "ORIGIN ( -A | -P | TARGETS... )"
 	var (
-		origin = cmd.StringArg("ORIGIN", "", "origin selector")
-		target = cmd.StringArg("TARGET", "", "target selector")
+		origin  = cmd.StringArg("ORIGIN", "",
+														"origin selector. 'today' is a valid option and will" +
+														" create the node if it doesn't already exist")
+		targets = cmd.StringsArg("TARGETS", nil, "target selector")
+		allChildren = cmd.BoolOpt("A allChildren", false,
+			"unlink all children of the node")
+		allParents = cmd.BoolOpt("P allParents", false,
+		  "unlink all parent of the node, essentially making it a root node")
 	)
 	cmd.Action = func() {
 		a, err := app.New()
@@ -207,8 +264,39 @@ func cmdUnlink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		if err := a.UnlinkNodes(*origin, *target); err != nil {
-			dief("Couldn't unlink nodes: %v\n", err)
+		today := time.Now().Format("2006-01-02")
+		if *origin == "today" {
+			*origin = today
+		}
+
+		originNode, err := a.GetGraph(*origin)
+		if err != nil {
+			die(err)
+		} else if originNode == nil {
+			die("Node does not exist")
+		}
+
+		var nodes []*multitree.Node
+		if *allChildren {
+			nodes = originNode.Children()
+			for _, n := range nodes {
+				if err := a.UnlinkNodes(*origin, n); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
+		} else if *allParents {
+			nodes = originNode.Parents()
+			for _, n := range nodes {
+				if err := a.UnlinkNodes(n, *origin); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
+		} else {
+			for _, t := range *targets {
+				if err := a.UnlinkNodes(*origin, t); err != nil {
+					dief("Couldn't unlink nodes: %v\n", err)
+				}
+			}
 		}
 	}
 }
@@ -497,5 +585,29 @@ func cmdStat(cmd *cli.Cmd) {
 			fmt.Printf("Checked: %s\n", time.Unix(*node.Completed, 0).Format(timeFmt))
 		}
 
+	}
+}
+
+func cmdMove(cmd *cli.Cmd) {
+	cmd.Spec = "NODE ORIGIN TARGET"
+	var (
+		node = cmd.StringArg("NODE", "", "node selector")
+		origin = cmd.StringArg("ORIGIN", "", "origin selector")
+		target = cmd.StringArg("TARGET", "", "target selector")
+	)
+
+	cmd.Action = func() {
+		a, err := app.New()
+		if err != nil {
+			die(err)
+		}
+		defer a.Close()
+
+		if err := a.UnlinkNodes(*origin, *node); err != nil {
+			dief("Couldn't unlink nodes: %v\n", err)
+		}
+		if _, err := a.LinkNodes(*target, *node); err != nil {
+			dief("Couldn't link nodes: %v\n", err)
+		}
 	}
 }

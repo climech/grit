@@ -20,3 +20,14 @@ func SortNodesByName(nodes []*Node) {
 		return naturalsort.Compare(nodes[i].Name, nodes[j].Name)
 	})
 }
+
+// SortNodesByStatus sorts a the nodes by their status in the order of
+// Inactive -> InProgress -> Completed
+func SortNodesByStatus(nodes []*Node) {
+	sort.SliceStable(nodes, func(i, j int) bool {
+		if nodes[i].Status() == nodes[j].Status() {
+			return naturalsort.Compare(nodes[i].Name, nodes[j].Name)
+		}
+		return nodes[i].Status() > nodes[j].Status()
+	})
+}
