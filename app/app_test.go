@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -13,7 +12,7 @@ import (
 
 // setupApp creates a new App and hooks it up to a test database.
 func setupApp(t *testing.T) *App {
-	tmpfile, err := ioutil.TempFile("", "grit_test_db")
+	tmpfile, err := os.CreateTemp("", "grit_test_db")
 	if err != nil {
 		t.Fatalf("couldn't create temp file: %v", err)
 	}

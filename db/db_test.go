@@ -1,13 +1,12 @@
 package db
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func setupDB(t *testing.T) *Database {
-	tmpfile, err := ioutil.TempFile("", "grit_test_db")
+	tmpfile, err := os.CreateTemp("", "grit_test_db")
 	if err != nil {
 		t.Fatalf("couldn't create temp file: %v", err)
 	}
