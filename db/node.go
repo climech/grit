@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/climech/grit/multitree"
@@ -301,7 +300,7 @@ func (d *Database) checkNode(nodeID int64, check bool) error {
 			return err
 		}
 		if count, _ := r.RowsAffected(); count == 0 {
-			return fmt.Errorf("node does not exist")
+			return ErrNodeNotFound
 		}
 		node.Completed = copyCompletion(value)
 		return nil
@@ -313,7 +312,7 @@ func (d *Database) checkNode(nodeID int64, check bool) error {
 			return err
 		}
 		if node == nil {
-			return fmt.Errorf("node does not exist")
+			return ErrNodeNotFound
 		}
 		// Update local root.
 		if err := update(tx, node); err != nil {
@@ -352,7 +351,7 @@ func (d *Database) RenameNode(nodeID int64, name string) error {
 		return err
 	}
 	if count, _ := r.RowsAffected(); count == 0 {
-		return fmt.Errorf("not found")
+		return ErrNodeNotFound
 	}
 	return nil
 }
@@ -363,7 +362,7 @@ func deleteNode(tx *sql.Tx, id int64) error {
 		return err
 	}
 	if count, _ := r.RowsAffected(); count == 0 {
-		return fmt.Errorf("node does not exist")
+		return ErrNodeNotFound
 	}
 	return nil
 }
@@ -379,7 +378,7 @@ func (d *Database) DeleteNode(id int64) ([]*multitree.Node, error) {
 			return err
 		}
 		if node == nil {
-			return fmt.Errorf("node does not exist")
+			return ErrNodeNotFound
 		}
 
 		if err := deleteNode(tx, id); err != nil {
@@ -424,7 +423,7 @@ func (d *Database) DeleteNodeRecursive(id int64) ([]*multitree.Node, error) {
 			return err
 		}
 		if node == nil {
-			return fmt.Errorf("node does not exist")
+			return ErrNodeNotFound
 		}
 
 		if err := deleteNode(tx, id); err != nil {
@@ -461,10 +460,13 @@ func (d *Database) SetAlias(nodeID int64, alias string) error {
 	r, err := d.DB.Exec("UPDATE nodes SET node_alias = ? WHERE node_id = ?",
 		nullable, nodeID)
 	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrAliasExists
+		}
 		return err
 	}
 	if count, _ := r.RowsAffected(); count == 0 {
-		return fmt.Errorf("node does not exist")
+		return ErrNodeNotFound
 	}
 	return nil
 }

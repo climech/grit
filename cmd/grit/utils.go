@@ -4,7 +4,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/climech/grit/app"
 )
+
+func mustParseSelector(s string) app.Selector {
+	sel, err := app.ParseSelector(s)
+	if err != nil {
+		die(capitalize(err.Error()))
+	}
+	return sel
+}
 
 func die(a ...interface{}) {
 	msg := fmt.Sprint(a...)

@@ -48,7 +48,7 @@ func createLink(tx *sql.Tx, originID, destID int64) (int64, error) {
 		return 0, err
 	}
 	if origin == nil {
-		return 0, fmt.Errorf("link origin does not exist")
+		return 0, fmt.Errorf("link origin: %w", ErrNodeNotFound)
 	}
 
 	dest, err := getGraph(tx, destID)
@@ -56,7 +56,7 @@ func createLink(tx *sql.Tx, originID, destID int64) (int64, error) {
 		return 0, err
 	}
 	if dest == nil {
-		return 0, fmt.Errorf("link target does not exist")
+		return 0, fmt.Errorf("link target: %w", ErrNodeNotFound)
 	}
 
 	if err := multitree.LinkNodes(origin, dest); err != nil {
@@ -124,7 +124,7 @@ func deleteLinkByEndpoints(tx *sql.Tx, originID, destID int64) error {
 		return err
 	}
 	if count, _ := r.RowsAffected(); count == 0 {
-		return fmt.Errorf("link (%d) -> (%d) does not exist", originID, destID)
+		return fmt.Errorf("%w: (%d) -> (%d)", ErrLinkNotFound, originID, destID)
 	}
 	return nil
 }

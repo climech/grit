@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"os"
 	"testing"
 )
@@ -96,5 +97,39 @@ func TestAutodeleteDateNode(t *testing.T) {
 		} else if n != nil {
 			t.Error("date node still exists after unlinking its only child")
 		}
+	}
+}
+
+func TestSentinelErrors(t *testing.T) {
+	d := setupDB(t)
+	defer tearDB(t, d)
+
+	if _, err := d.CreateNode("a", 99); !errors.Is(err, ErrNodeNotFound) {
+		t.Errorf("CreateNode with missing parent: got %v, want ErrNodeNotFound", err)
+	}
+	if err := d.CheckNode(99); !errors.Is(err, ErrNodeNotFound) {
+		t.Errorf("CheckNode on missing node: got %v, want ErrNodeNotFound", err)
+	}
+	if err := d.RenameNode(99, "x"); !errors.Is(err, ErrNodeNotFound) {
+		t.Errorf("RenameNode on missing node: got %v, want ErrNodeNotFound", err)
+	}
+	if _, err := d.DeleteNode(99); !errors.Is(err, ErrNodeNotFound) {
+		t.Errorf("DeleteNode on missing node: got %v, want ErrNodeNotFound", err)
+	}
+	if err := d.SetAlias(99, "x"); !errors.Is(err, ErrNodeNotFound) {
+		t.Errorf("SetAlias on missing node: got %v, want ErrNodeNotFound", err)
+	}
+
+	id1, _ := d.CreateNode("a", 0)
+	id2, _ := d.CreateNode("b", 0)
+	if err := d.DeleteLinkByEndpoints(id1, id2); !errors.Is(err, ErrLinkNotFound) {
+		t.Errorf("DeleteLinkByEndpoints without link: got %v, want ErrLinkNotFound", err)
+	}
+
+	if err := d.SetAlias(id1, "dup"); err != nil {
+		t.Fatalf("couldn't set alias: %v", err)
+	}
+	if err := d.SetAlias(id2, "dup"); !errors.Is(err, ErrAliasExists) {
+		t.Errorf("duplicate alias: got %v, want ErrAliasExists", err)
 	}
 }

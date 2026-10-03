@@ -44,7 +44,7 @@ func cmdAdd(cmd *cli.Cmd) {
 			}
 			color.Cyan("(%d)", node.ID)
 		} else {
-			node, err := a.AddChild(name, *predecessor)
+			node, err := a.AddChild(name, mustParseSelector(*predecessor))
 			if err != nil {
 				dief("Couldn't create node: %v\n", err)
 			}
@@ -72,7 +72,7 @@ func cmdTree(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		node, err := a.GetGraph(*selector)
+		node, err := a.GetGraph(mustParseSelector(*selector))
 		if err != nil {
 			die(capitalize(err.Error()))
 		}
@@ -108,7 +108,7 @@ func cmdList(cmd *cli.Cmd) {
 			}
 			for _, r := range roots {
 				// Get as part of multitree for accurate status.
-				n, err := a.GetGraph(r.ID)
+				n, err := a.GetGraph(app.ByID(r.ID))
 				if err != nil {
 					die(err)
 				}
@@ -118,7 +118,7 @@ func cmdList(cmd *cli.Cmd) {
 				nodes = append(nodes, n)
 			}
 		} else {
-			node, err := a.GetGraph(*selector)
+			node, err := a.GetGraph(mustParseSelector(*selector))
 			if err != nil {
 				die(capitalize(err.Error()))
 			}
@@ -147,7 +147,7 @@ func cmdCheck(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 		for _, sel := range *selectors {
-			if err := a.CheckNode(sel); err != nil {
+			if err := a.CheckNode(mustParseSelector(sel)); err != nil {
 				dief("Couldn't check node: %v", err)
 			}
 		}
@@ -166,7 +166,7 @@ func cmdUncheck(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 		for _, sel := range *selectors {
-			if err := a.UncheckNode(sel); err != nil {
+			if err := a.UncheckNode(mustParseSelector(sel)); err != nil {
 				dief("Couldn't uncheck node: %v", err)
 			}
 		}
@@ -186,8 +186,13 @@ func cmdLink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
+		o := mustParseSelector(*origin)
 		for _, t := range *targets {
-			if _, err := a.LinkNodes(*origin, t); err != nil {
+			d, err := app.ParseSelector(t)
+			if err == nil {
+				_, err = a.LinkNodes(o, d)
+			}
+			if err != nil {
 				errf("Couldn't create link (%s) -> (%s): %v\n", *origin, t, err)
 			}
 		}
@@ -207,7 +212,7 @@ func cmdUnlink(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		if err := a.UnlinkNodes(*origin, *target); err != nil {
+		if err := a.UnlinkNodes(mustParseSelector(*origin), mustParseSelector(*target)); err != nil {
 			dief("Couldn't unlink nodes: %v\n", err)
 		}
 	}
@@ -227,7 +232,7 @@ func cmdListDates(cmd *cli.Cmd) {
 		}
 		for _, d := range dnodes {
 			// Get the nodes as members of their graphs to get accurate status.
-			n, err := a.GetGraph(d.ID)
+			n, err := a.GetGraph(app.ByID(d.ID))
 			if err != nil {
 				die(err)
 			}
@@ -253,7 +258,7 @@ func cmdRename(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 		name := strings.Join(*nameParts, " ")
-		if err := a.RenameNode(*selector, name); err != nil {
+		if err := a.RenameNode(mustParseSelector(*selector), name); err != nil {
 			dief("Couldn't rename node: %v", err)
 		}
 	}
@@ -327,8 +332,13 @@ func cmdRemove(cmd *cli.Cmd) {
 		}
 
 		for _, sel := range *selectors {
+			s, err := app.ParseSelector(sel)
+			if err != nil {
+				appendErr(sel, err)
+				continue
+			}
 			if *recursive {
-				removed, err := a.RemoveNodeRecursive(sel)
+				removed, err := a.RemoveNodeRecursive(s)
 				if err != nil {
 					appendErr(sel, err)
 					continue
@@ -337,12 +347,12 @@ func cmdRemove(cmd *cli.Cmd) {
 					msgs = append(msgs, fmt.Sprintf("Removed: %v ", node))
 				}
 			} else {
-				removed, err := a.GetGraph(sel)
+				removed, err := a.GetGraph(s)
 				if err != nil {
 					appendErr(sel, err)
 					continue
 				}
-				orphaned, err := a.RemoveNode(sel)
+				orphaned, err := a.RemoveNode(s)
 				if err != nil {
 					appendErr(sel, err)
 					continue
@@ -402,6 +412,11 @@ func cmdImport(cmd *cli.Cmd) {
 			dief("Import error: %v", err)
 		}
 
+		var parent app.Selector
+		if !*makeRoot {
+			parent = mustParseSelector(*predecessor)
+		}
+
 		var errs []error
 		var treesTotal, nodesTotal int
 
@@ -411,7 +426,7 @@ func cmdImport(cmd *cli.Cmd) {
 			if *makeRoot {
 				id, err = a.AddRootTree(root)
 			} else {
-				id, err = a.AddChildTree(root, *predecessor)
+				id, err = a.AddChildTree(root, parent)
 			}
 			if err != nil {
 				e := fmt.Errorf("Couldn't import tree: %v", err)
@@ -419,7 +434,7 @@ func cmdImport(cmd *cli.Cmd) {
 				continue
 			}
 
-			if g, err := a.GetGraph(id); err != nil {
+			if g, err := a.GetGraph(app.ByID(id)); err != nil {
 				errs = append(errs, err)
 			} else {
 				fmt.Print(g.StringTree())
@@ -447,7 +462,7 @@ func cmdStat(cmd *cli.Cmd) {
 		}
 		defer a.Close()
 
-		node, err := a.GetGraph(*selector)
+		node, err := a.GetGraph(mustParseSelector(*selector))
 		if err != nil {
 			die(err)
 		} else if node == nil {
